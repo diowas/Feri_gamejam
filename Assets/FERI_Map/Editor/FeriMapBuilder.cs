@@ -657,9 +657,17 @@ namespace FeriMap.EditorTools
         static void BuildElevator(Ctx C, LElev e)
         {
             float x0 = e.shaft[0], x1 = e.shaft[1], z0 = e.shaft[2], z1 = e.shaft[3];
-            float cx = (x0 + x1) * 0.5f, cz = (z0 + z1) * 0.5f, dz = e.doorCenter;
+            float cx = (x0 + x1) * 0.5f, cz = (z0 + z1) * 0.5f;
+            string side = string.IsNullOrEmpty(e.doorSide) ? "-x" : e.doorSide;
+            float yaw = side == "-z" ? -90f : side == "+z" ? 90f : side == "+x" ? 180f : 0f;
+            bool zDoor = side == "-z" || side == "+z";
+            float dz = zDoor ? (side == "-z" ? cx - e.doorCenter : e.doorCenter - cx)
+                             : (side == "+x" ? cz - e.doorCenter : e.doorCenter - cz);
+            float hw = (zDoor ? (z1 - z0) : (x1 - x0)) * 0.5f;
             var rootGo = new GameObject(string.IsNullOrEmpty(e.name) ? "Elevator" : "Elevator");
             rootGo.transform.SetParent(C.root, false);
+            rootGo.transform.localPosition = new Vector3(cx, 0f, cz);
+            rootGo.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
             var elev = rootGo.AddComponent<FeriElevator>();
             elev.doorSlideAxis = Vector3.forward;
             elev.doorTravel = 0.48f;
@@ -670,12 +678,13 @@ namespace FeriMap.EditorTools
 
             var cabinGo = new GameObject("Cabin");
             cabinGo.transform.SetParent(rootGo.transform, false);
-            cabinGo.transform.position = new Vector3(cx, y0, cz);
+            cabinGo.transform.localPosition = new Vector3(0f, y0, 0f);
             var rb = cabinGo.AddComponent<Rigidbody>();
             rb.isKinematic = true; rb.useGravity = false;
             Transform cab = cabinGo.transform;
-            float hx = (x1 - x0) * 0.5f - 0.05f, hz = (z1 - z0) * 0.5f - 0.05f;
-            float ldz = dz - cz;
+            float hx = (zDoor ? (z1 - z0) : (x1 - x0)) * 0.5f - 0.05f;
+            float hz = (zDoor ? (x1 - x0) : (z1 - z0)) * 0.5f - 0.05f;
+            float ldz = dz;
             const float H = 2.4f, DH = 2.1f, DW = 0.5f;
             var parts = new List<GameObject>();
             parts.Add(MakeBox(C, "Floor", cab, new Vector3(-hx, -0.12f, -hz), new Vector3(hx, 0, hz), "terrazzo", worldSpaceInput: false));
@@ -743,12 +752,13 @@ namespace FeriMap.EditorTools
                 var lroot = new GameObject("Landing_" + lf.label);
                 lroot.transform.SetParent(landings, false);
                 float y = lf.y;
-                float wx = x0 - 0.2f;
-                var la = MakeBox(C, "DoorA", lroot.transform, new Vector3(x0 - 0.14f, y, dz - DW), new Vector3(x0 - 0.10f, y + DH, dz), "door_steel", "f");
-                var lb2 = MakeBox(C, "DoorB", lroot.transform, new Vector3(x0 - 0.14f, y, dz), new Vector3(x0 - 0.10f, y + DH, dz + DW), "door_steel", "f");
-                var ld = MakeBox(C, "Display", lroot.transform, new Vector3(wx - 0.10f, y + 2.24f, dz - 0.18f), new Vector3(wx - 0.08f, y + 2.46f, dz + 0.18f), "signs_glow", "f", null, collider: false);
-                MakeBox(C, "DisplayFrame", lroot.transform, new Vector3(wx - 0.08f, y + 2.2f, dz - 0.24f), new Vector3(wx - 0.05f, y + 2.5f, dz + 0.24f), "signs", "f", "display", collider: false);
-                var call = MakeBox(C, "CallButton", lroot.transform, new Vector3(wx - 0.02f, y + 1.05f, dz + 0.8f), new Vector3(wx, y + 1.17f, dz + 0.92f), "signs", "f", "btnCall", collider: true, trigger: true);
+                float lx = -hw;
+                float wx = lx - 0.2f;
+                var la = MakeBox(C, "DoorA", lroot.transform, new Vector3(lx - 0.14f, y, dz - DW), new Vector3(lx - 0.10f, y + DH, dz), "door_steel", "f", worldSpaceInput: false);
+                var lb2 = MakeBox(C, "DoorB", lroot.transform, new Vector3(lx - 0.14f, y, dz), new Vector3(lx - 0.10f, y + DH, dz + DW), "door_steel", "f", worldSpaceInput: false);
+                var ld = MakeBox(C, "Display", lroot.transform, new Vector3(wx - 0.10f, y + 2.24f, dz - 0.18f), new Vector3(wx - 0.08f, y + 2.46f, dz + 0.18f), "signs_glow", "f", null, collider: false, worldSpaceInput: false);
+                MakeBox(C, "DisplayFrame", lroot.transform, new Vector3(wx - 0.08f, y + 2.2f, dz - 0.24f), new Vector3(wx - 0.05f, y + 2.5f, dz + 0.24f), "signs", "f", "display", collider: false, worldSpaceInput: false);
+                var call = MakeBox(C, "CallButton", lroot.transform, new Vector3(wx - 0.02f, y + 1.05f, dz + 0.8f), new Vector3(wx, y + 1.17f, dz + 0.92f), "signs", "f", "btnCall", collider: true, trigger: true, worldSpaceInput: false);
                 var cb = call.AddComponent<FeriElevatorButton>();
                 cb.elevator = elev; cb.floorIndex = i; cb.isCallButton = true; cb.buttonRenderer = call.GetComponent<MeshRenderer>();
                 floorsList[i].landingDoorA = la.transform;

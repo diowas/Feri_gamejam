@@ -167,7 +167,12 @@ namespace FeriMap
         void CarryPassengers(Vector3 delta)
         {
             if (cabinVolume == null) return;
-            Bounds b = new Bounds(cabinVolume.transform.TransformPoint(cabinVolume.center), cabinVolume.size);
+            Vector3 hs = cabinVolume.size * 0.5f;
+            Vector3 wc = cabinVolume.transform.TransformPoint(cabinVolume.center);
+            Vector3 ax2 = cabinVolume.transform.TransformVector(new Vector3(hs.x, 0, 0));
+            Vector3 az2 = cabinVolume.transform.TransformVector(new Vector3(0, 0, hs.z));
+            Vector3 half = new Vector3(Mathf.Abs(ax2.x) + Mathf.Abs(az2.x), hs.y, Mathf.Abs(ax2.z) + Mathf.Abs(az2.z));
+            Bounds b = new Bounds(wc, half * 2f);
             b.Expand(new Vector3(0, 0.6f, 0));
             foreach (var p in FeriPlayer.All)
             {

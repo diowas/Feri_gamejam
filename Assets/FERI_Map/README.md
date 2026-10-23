@@ -27,10 +27,10 @@ Mere so ocenjene iz tvojega natančnega tlorisa (≈ 0,07 m na piksel) in 360° 
 Koordinate: **X+** proti vhodu na Koroški, **Z+** proti P01–P03, hala je na `y = 0`.
 
 - **Avla (hala)** – teraco tla, svetli robni pasovi, stebri in lesena fasada s severne strani, perforirana pločevina z juga, steklena streha, dva mostova čez atrij. Vhodna steklena stena na vzhodu z zaprtima izhodoma (trak), prazno varnostnikovo mesto, dve pokvarjeni dvigali (»NE DELA«), zaprte stopnice (JV), stopnice gor (S, levi krak prečrtan), prazen hodnik do Referata (zaklenjen).
-- **Tribuna + stopnice** – lesena tribuna (previsoka za hojo, z vrvjo na vrhu), granitne stopnice z ograjo na severni strani in ozke lesene stopnice ob P06.
-- **Zgornji nivo (`y = 2`)** – greš po stopnicah gor, desno so **stopnice dol** (slepe, do zaklenjene kleti), naprej na desni **vrata V2** in nato **V1** v Alfo. Na levi Beta (V4 odprta, V3 zaklenjena). Na koncu hodnika steklena stena, jeklene stopnice na galerijo in **most ven v temo**, ki je na koncu zaprt. Spodaj ni nič, v daljavi bela hiša z enim prižganim oknom.
+- **Tribuna + stopnice** – lesena tribuna čez cel pas ob zahodni steni (previsoka za hojo, z vrvjo na vrhu); gor se gre po granitnih stopnicah z ograjo na severni strani.
+- **Zgornji nivo (`y = 2`)** – greš po stopnicah gor, desno so **stopnice dol** (slepe, do zaklenjene kleti). Alfa ima pred predavalnico svoj hodnik z nizkim stropom, vgrajen v njen tloris (fasada ostane ravna): vanj prideš skozi eno od dveh odprtin na koncih, iz njega pa skozi **V1** in **V2** v dvorano. Oboja vrata so na robovih, poravnana s stranskima hodnikoma med sedeži, zato prideš naravnost na stopnice navzdol. Na levi Beta (V3 in V4, obe odprti). Na koncu hodnika steklena stena, jeklene stopnice na galerijo in **most ven v temo**, ki je na koncu zaprt. Most gre ven kar z nivoja hodnika; spodaj ni nič, takoj za koncem mostu stoji bela hiša z enim prižganim oknom.
 - **Alfa (G2-P1)** – vrste se spuščajo proti tabli (10 vrst), lesene stene, okenski trak, črn akustični pas, kovinski strop s svetlobnimi trakovi, table + platno.
-- **Beta (G2-P2)** – vrste se dvigajo proti stekleni zadnji steni, barvni sedeži, črna akustična stena.
+- **Beta (G2-P2)** – vstopiš spodaj ob tabli, vrste se dvigajo stran od vrat proti stekleni zadnji steni, barvni sedeži, črna akustična stena. Obe vrati sta na isti višini kot hodnik, zato obe delujeta.
 - **P01–P06** – ravna tla, mize in stoli po tvoji skici, tabla na označeni steni. P01–P03 velika okna, P04–P06 majhna okna visoko pod stropom. P04 in P06 sta brez luči, v P02 ena utripa.
 - **Prehod do dvigala** – ob Beti, z zaklenjenimi stranskimi vrati (vhod 2) in zaklenjenimi stopnicami.
 - **Dvigalo** – plošča kot v resničnem dvigalu (3 4 / 1 2 / −1 0 / −3 −2):
@@ -38,6 +38,7 @@ Koordinate: **X+** proti vhodu na Koroški, **Z+** proti P01–P03, hala je na `
   - **0** zgornji nivo avle (kjer dvigalo stoji),
   - **4** jedilnica na galeriji nad atrijem (pult, hladilnika, mize in stoli),
   - **1, 2, 3, −3** se ne odzovejo (pisk + rdeč gumb).
+  - Vrata so na severni strani jaška, obrnjena proti ploščadi zgornjega nivoja. V jedilnici je pred njimi majhen balkon nad atrijem, ker ob jašku ni bilo dovolj prostora.
   - Pred vrati v vsakem delujočem nadstropju je gumb za klic in prikazovalnik nadstropja.
 
 Tlorisi vseh nivojev in posnetki iz predogleda so v mapi `Preview/` poleg paketa.
@@ -80,5 +81,5 @@ Nato v Unityju spet **FERI → Zgradi mapo …**. Funkcije `box`, `wall_x/wall_z
 
 - Mere so ocene (natančnih načrtov nismo imeli); tloris se ujema z razporeditvijo prostorov.
 - Nadstropja 1–3 niso modelirana (fasade atrija so samo kulisa).
-- V3 v Beto je zaklenjena, ker je na višini zadnjih vrst in je s hodnika ni mogoče doseči brez stopnic.
+- Beta je obrnjena tako, da je tabla ob hodniku in se vrste dvigajo stran od njega; le tako sta oboja vrata na nivoju hodnika.
 - Dvigalo »0« je na zgornjem nivoju avle (ob Beti, tako kot na skici), ne na nivoju vhoda.

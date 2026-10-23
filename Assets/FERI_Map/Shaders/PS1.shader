@@ -1,8 +1,3 @@
-// FERI PS1 shader
-// - vertex snapping (jitter), affine texture warping, point-sampled textures
-// - Gouraud (per-vertex) lighting: baked vertex colours + dynamic PS1Light-s
-// - per-pixel flashlight (PS1Flashlight), distance fog, optional 15-bit dithering
-// Works in Built-in RP and URP (pass without LightMode tag).
 Shader "FERI/PS1"
 {
     Properties
@@ -38,19 +33,18 @@ Shader "FERI/PS1"
             float4 _Color; float _Emission; float _Cutoff; float _AlphaClip;
             float _UseVertexColor; float _Affine;
 
-            // globals set by PS1Lighting
             float4 _PS1_Ambient;
             float4 _PS1_FogColor;
-            float4 _PS1_FogRange;    // x start, y end
-            float4 _PS1_Snap;        // xy virtual resolution, z enabled
+            float4 _PS1_FogRange;
+            float4 _PS1_Snap;
             float  _PS1_Dither;
             float  _PS1_Exposure;
             float  _PS1_LightCount;
-            float4 _PS1_LightPos[16];  // xyz, w = range
-            float4 _PS1_LightCol[16];  // rgb * intensity, w = 1 if baked into vertex colours
-            float4 _PS1_SpotPos;       // xyz, w = range
-            float4 _PS1_SpotDir;       // xyz, w = cos(outer)
-            float4 _PS1_SpotCol;       // rgb, w = cos(inner)
+            float4 _PS1_LightPos[16];
+            float4 _PS1_LightCol[16];
+            float4 _PS1_SpotPos;
+            float4 _PS1_SpotDir;
+            float4 _PS1_SpotCol;
 
             struct appdata
             {
@@ -123,7 +117,7 @@ Shader "FERI/PS1"
                 if (_AlphaClip > 0.5) clip(tex.a - _Cutoff);
 
                 float3 light = i.light;
-                // flashlight (per pixel so the cone reads well)
+
                 float3 d = _PS1_SpotPos.xyz - i.wpos;
                 float dist = length(d);
                 float3 dn = d / max(dist, 0.0001);
