@@ -8,8 +8,23 @@ namespace FeriMap.EditorTools
     {
         void OnPreprocessTexture()
         {
-            if (!assetPath.Replace('\\', '/').Contains("/FERI_Map/Textures/")) return;
+            string a = assetPath.Replace('\\', '/');
+            if (!a.Contains("/FERI_Map/Textures/") && !a.Contains("/FERI_Map/Props/Textures/")) return;
             Configure((TextureImporter)assetImporter);
+        }
+
+        void OnPreprocessModel()
+        {
+            if (!assetPath.Replace('\\', '/').Contains("/FERI_Map/Props/")) return;
+            var mi = (ModelImporter)assetImporter;
+            mi.importAnimation = false;
+            mi.importCameras = false;
+            mi.importLights = false;
+            mi.importBlendShapes = false;
+            mi.addCollider = false;
+            mi.importNormals = ModelImporterNormals.Import;
+            mi.weldVertices = false;
+            mi.bakeAxisConversion = true;
         }
 
         public static bool Configure(TextureImporter ti)

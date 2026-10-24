@@ -23,13 +23,14 @@ namespace FeriMap.EditorTools
         [Serializable] public class LLight { public float[] p; public float[] col; public float i; public float range; public float flicker; public bool bake; }
         [Serializable] public class LFloor { public string label; public float y; public bool enabled; }
         [Serializable] public class LElev { public string name; public float[] shaft; public string doorSide; public float doorCenter; public LFloor[] floors; public string start; }
+        [Serializable] public class LProp { public string model; public string tex; public float[] p; public float yaw; public float h; public float li; public float[] lcol; public float lrng; public float lfl; public float ly; public int col; public float rx; }
         [Serializable] public class LSpawn { public float[] p; public float yaw; }
         [Serializable] public class LSettings { public float[] ambient; public float[] fogColor; public float fogStart; public float fogEnd; }
         [Serializable]
         public class Layout
         {
             public int version; public LAtlas[] atlas; public LMat[] materials; public LBox[] boxes; public LCyl[] cyls;
-            public LLight[] lights; public LElev[] elevators; public LSpawn spawn; public LSettings settings;
+            public LLight[] lights; public LElev[] elevators; public LProp[] props; public LSpawn spawn; public LSettings settings;
         }
 
         class Acc
@@ -222,6 +223,7 @@ namespace FeriMap.EditorTools
 
                 EditorUtility.DisplayProgressBar("FERI", "Dvigalo", 0.45f);
                 if (C.L.elevators != null) foreach (LElev e in C.L.elevators) BuildElevator(C, e);
+                BuildProps(C, shader);
 
                 BuildPlayerAndSettings(C);
 
@@ -652,6 +654,123 @@ namespace FeriMap.EditorTools
             float[] r;
             if (C.atlas.TryGetValue(name, out r) && r != null && r.Length == 4) return new Vector4(r[0], r[1], r[2], r[3]);
             return new Vector4(0, 0, 1, 1);
+        }
+
+        static void BuildProps(Ctx C, Shader shader)
+        {
+            if (C.L.props == null || C.L.props.Length == 0) return;
+            Transform root = Child(C.root, "Props");
+            var cache = new Dictionary<string, Material>();
+            int missing = 0;
+            foreach (LProp p in C.L.props)
+            {
+                string path = C.baseDir + "/Props/" + p.model + ".fbx";
+                GameObject src = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (src == null)
+                {
+                    if (missing++ == 0) Debug.LogWarning("[FERI] Model ni najden: " + path);
+                    continue;
+                }
+                GameObject holder = new GameObject(p.model);
+                holder.transform.SetParent(root, false);
+                GameObject tilt = new GameObject("Model");
+                tilt.transform.SetParent(holder.transform, false);
+                GameObject go = UnityEngine.Object.Instantiate(src);
+                go.transform.SetParent(tilt.transform, false);
+                var rends = holder.GetComponentsInChildren<MeshRenderer>();
+                if (rends.Length == 0) { UnityEngine.Object.DestroyImmediate(holder); continue; }
+
+                Bounds lb;
+                if (!LocalBounds(holder.transform, out lb)) { UnityEngine.Object.DestroyImmediate(holder); continue; }
+                if (p.rx != 0f)
+                {
+                    tilt.transform.localRotation = Quaternion.Euler(p.rx, 0f, 0f);
+                    if (!LocalBounds(holder.transform, out lb)) { UnityEngine.Object.DestroyImmediate(holder); continue; }
+                }
+
+                float sc = (p.h > 0.0001f && lb.size.y > 0.00001f) ? p.h / lb.size.y : 1f;
+                holder.transform.localRotation = Quaternion.Euler(0f, p.yaw, 0f);
+                holder.transform.localScale = new Vector3(sc, sc, sc);
+                Vector3 want = new Vector3(p.p[0], p.p[1], p.p[2]);
+                Vector3 anchor = holder.transform.TransformPoint(new Vector3(lb.center.x, lb.min.y, lb.center.z));
+                holder.transform.position += want - anchor;
+                GameObject go2 = holder;
+
+                foreach (MeshRenderer r in rends)
+                {
+                    Material[] ms = r.sharedMaterials;
+                    for (int i = 0; i < ms.Length; i++) ms[i] = PropMaterial(C, cache, ms[i], p.tex, shader);
+                    r.sharedMaterials = ms;
+                    r.shadowCastingMode = ShadowCastingMode.Off;
+                }
+
+                if (p.col != 0)
+                {
+                    var bc = go2.AddComponent<BoxCollider>();
+                    bc.center = lb.center;
+                    bc.size = lb.size;
+                }
+
+                if (p.li > 0.0001f)
+                {
+                    var lgo = new GameObject("Light");
+                    lgo.transform.SetParent(go2.transform, false);
+                    lgo.transform.position = new Vector3(want.x, want.y + p.ly, want.z);
+                    var pl = lgo.AddComponent<PS1Light>();
+                    pl.color = ToColor(p.lcol, new Color(1f, 0.5f, 0.15f));
+                    pl.intensity = p.li;
+                    pl.range = p.lrng > 0 ? p.lrng : 4.5f;
+                    pl.flicker = p.lfl;
+                    pl.baked = false;
+                }
+            }
+            if (missing > 0) Debug.LogWarning("[FERI] Manjkajocih modelov: " + missing + " (mapa FERI_Map/Props)");
+        }
+
+        static bool LocalBounds(Transform root, out Bounds lb)
+        {
+            lb = new Bounds();
+            bool any = false;
+            Matrix4x4 toLocal = root.worldToLocalMatrix;
+            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>())
+            {
+                if (mf.sharedMesh == null) continue;
+                Bounds mb = mf.sharedMesh.bounds;
+                Matrix4x4 m = toLocal * mf.transform.localToWorldMatrix;
+                Vector3 mn = mb.min, mx = mb.max;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 c = new Vector3((i & 1) == 0 ? mn.x : mx.x,
+                                            (i & 2) == 0 ? mn.y : mx.y,
+                                            (i & 4) == 0 ? mn.z : mx.z);
+                    Vector3 w = m.MultiplyPoint3x4(c);
+                    if (!any) { lb = new Bounds(w, Vector3.zero); any = true; }
+                    else lb.Encapsulate(w);
+                }
+            }
+            return any;
+        }
+
+        static Material PropMaterial(Ctx C, Dictionary<string, Material> cache, Material srcMat, string texName, Shader shader)
+        {
+            Texture tex = srcMat != null ? srcMat.mainTexture : null;
+            if (tex == null && !string.IsNullOrEmpty(texName))
+                tex = AssetDatabase.LoadAssetAtPath<Texture2D>(C.baseDir + "/Props/Textures/" + texName + ".png");
+            string key = tex != null ? tex.name : (srcMat != null ? srcMat.name : "none");
+            Material m;
+            if (cache.TryGetValue(key, out m)) return m;
+            string path = C.baseDir + "/Materials/Prop_" + key + ".mat";
+            m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(shader); AssetDatabase.CreateAsset(m, path); }
+            m.shader = shader;
+            ApplyMode(m, "cutout", "off");
+            m.SetTexture("_MainTex", tex);
+            m.SetColor("_Color", Color.white);
+            m.SetFloat("_Emission", 0f);
+            m.SetFloat("_UseVertexColor", 0f);
+            EditorUtility.SetDirty(m);
+            cache[key] = m;
+            return m;
         }
 
         static void BuildElevator(Ctx C, LElev e)

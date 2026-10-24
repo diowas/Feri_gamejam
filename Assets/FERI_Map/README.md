@@ -43,6 +43,16 @@ Koordinate: **X+** proti vhodu na Koroški, **Z+** proti P01–P03, hala je na `
 
 Tlorisi vseh nivojev in posnetki iz predogleda so v mapi `Preview/` poleg paketa.
 
+## Noč čarovnic
+
+Okrasje uporablja **PSX Halloween Asset Pack (sszpirit)**. Modeli so v `FERI_Map/Props` (FBX), njihove teksture v `FERI_Map/Props/Textures`. Postavitev je v `Data/feri_layout.json` pod `props`, builder pa modele vstavi, jih umeri na želeno višino, jim doda škatlast collider in materiale pretvori na shader FERI/PS1 (teksturo vzame iz materiala, ki ga uvozi FBX).
+
+V avli je pokopališki prizor: nagrobnika na kupu prsti, strašilo, bale sena, kolo od voza, koruza in buče, ograjena spredaj. Po preostali stavbi so razporejene izrezljane buče z lučko — ob stenah avle, na tribuni, v zgornjem hodniku in pred Alfo, na katedru v Alfi in Beti, v jedilnici, ob dvigalu in na obeh parkiriščih.
+
+Ker so propi modeli in ne generirana geometrija, jih slike v `Preview/` ne prikažejo; vidni so šele v Unityju.
+
+Če hočeš dodati svoje: v `props` dopiši vrstico z imenom modela iz `FERI_Map/Props`, pozicijo, zasukom in višino. Višina je dejanska višina v metrih, zato velikost FBX-a ni pomembna.
+
 ## PS1 osvetlitev
 
 Vsi materiali uporabljajo shader **FERI/PS1** (tresenje vozlišč, afino teksturiranje, točkovno filtriranje, megla, dithering). Unityjeve luči nanj ne vplivajo, namesto njih:
