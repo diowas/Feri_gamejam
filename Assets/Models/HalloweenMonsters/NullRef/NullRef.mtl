@@ -1,0 +1,7 @@
+newmtl NullRef_Mat
+Ka 1 1 1
+Kd 1 1 1
+Ks 0 0 0
+illum 1
+map_Kd NullRef_tex.png
+map_Ke NullRef_emission.png
