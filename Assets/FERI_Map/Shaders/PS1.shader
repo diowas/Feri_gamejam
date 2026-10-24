@@ -5,6 +5,8 @@ Shader "FERI/PS1"
         _MainTex ("Texture", 2D) = "white" {}
         _Color ("Color", Color) = (1,1,1,1)
         _Emission ("Emission (unlit)", Range(0,1)) = 0
+        _EmissionMap ("Emission map", 2D) = "black" {}
+        [HDR] _EmissionColor ("Emission color", Color) = (0,0,0,0)
         _Cutoff ("Alpha cutoff", Range(0,1)) = 0.5
         [Toggle] _AlphaClip ("Alpha clip", Float) = 0
         [Toggle] _UseVertexColor ("Use baked vertex light", Float) = 1
@@ -30,6 +32,7 @@ Shader "FERI/PS1"
             #include "UnityCG.cginc"
 
             sampler2D _MainTex; float4 _MainTex_ST;
+            sampler2D _EmissionMap; float4 _EmissionColor;
             float4 _Color; float _Emission; float _Cutoff; float _AlphaClip;
             float _UseVertexColor; float _Affine;
 
@@ -130,6 +133,8 @@ Shader "FERI/PS1"
                 float expo = (_PS1_Exposure > 0) ? _PS1_Exposure : 1.0;
                 float3 col = lerp(tex.rgb * light * expo, tex.rgb, _Emission);
                 col = lerp(col, _PS1_FogColor.rgb, i.fog);
+                // added after fog so glowing eyes stay visible in the dark
+                col += tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
 
                 if (_PS1_Dither > 0.5)
                 {
