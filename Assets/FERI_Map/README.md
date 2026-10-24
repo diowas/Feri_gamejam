@@ -36,9 +36,9 @@ Koordinate: **X+** proti vhodu na Koroški, **Z+** proti P01–P03, hala je na `
 - **Dvigalo** – plošča kot v resničnem dvigalu (3 4 / 1 2 / −1 0 / −3 −2):
   - **−2, −1** parkirišči (avtomobili, stebri, rampa med nivojema, zaprta garažna vrata),
   - **0** zgornji nivo avle (kjer dvigalo stoji),
-  - **4** jedilnica na galeriji nad atrijem (pult, hladilnika, mize in stoli),
+  - **4** jedilnica na galeriji nad atrijem, severno od jaška: na levi pult za hrano in dvoje zaklenjenih vrat ven, na desni dve vrsti miz ob odprtem robu z ograjo, od koder se vidi dol v halo; hladilnik v niši levo od dvigala, dvoje zazidanih stopnic,
   - **1, 2, 3, −3** se ne odzovejo (pisk + rdeč gumb).
-  - Vrata so na severni strani jaška, obrnjena proti ploščadi zgornjega nivoja. V jedilnici je pred njimi majhen balkon nad atrijem, ker ob jašku ni bilo dovolj prostora.
+  - Vrata so na severni strani jaška. V nadstropju 0 se odprejo na ploščad zgornjega nivoja, v nadstropju 4 pa naravnost v jedilnico.
   - Pred vrati v vsakem delujočem nadstropju je gumb za klic in prikazovalnik nadstropja.
 
 Tlorisi vseh nivojev in posnetki iz predogleda so v mapi `Preview/` poleg paketa.
