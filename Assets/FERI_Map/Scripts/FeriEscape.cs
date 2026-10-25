@@ -104,6 +104,9 @@ namespace FeriMap
             timeLeft = 0f;
         }
 
+        /// <summary>FeriEnding, before going back to the start: the next run begins from scratch.</summary>
+        public static void ResetForNewGame() { ResetProgress(); }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { ResetProgress(); }
 

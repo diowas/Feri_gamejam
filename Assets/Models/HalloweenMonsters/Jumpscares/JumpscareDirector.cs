@@ -148,6 +148,9 @@ public class JumpscareDirector : MonoBehaviour
     }
 
     // light a renderer through the emission map with its own texture: the blackout turns off every other kind of light
+    // FeriEnding calls this before a new game starts, so the next run isn't born dark
+    public static void ResetDarkness() { scares = 0; }
+
     public static void MakeSelfLit(Renderer r, MaterialPropertyBlock mpb, float brightness)
     {
         r.GetPropertyBlock(mpb);
@@ -159,7 +162,7 @@ public class JumpscareDirector : MonoBehaviour
 
     // ---------------------------------------------------------------- auto-setup
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics() { scares = 0; SceneManager.sceneLoaded -= OnSceneLoaded; }
+    static void ResetStatics() { ResetDarkness(); SceneManager.sceneLoaded -= OnSceneLoaded; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Install()
