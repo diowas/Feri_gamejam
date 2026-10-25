@@ -18,7 +18,11 @@ namespace FeriMap
         public float eyeOffset = 0.12f;
         [Tooltip("Pocasno nihanje kamere med hojo.")]
         public float headBob = 0.035f;
+        [Tooltip("How far down you can look, degrees. FeriPlayerBody lowers it so the feet only just come into view.")]
+        public float maxLookDown = 85f;
         public bool inputEnabled = true;
+        [Tooltip("Off while the hand display is up: the mouse drives its cursor instead of the camera.")]
+        public bool lookEnabled = true;
         public PS1Flashlight flashlight;
 
         public static readonly System.Collections.Generic.List<FeriPlayer> All = new System.Collections.Generic.List<FeriPlayer>();
@@ -28,6 +32,7 @@ namespace FeriMap
         CharacterController cc;
         float pitch, yaw, vy, bobT;
         FeriInteractable hover;
+        public FeriInteractable Hover => hover;
         GUIStyle promptStyle;
 
         void Awake()
@@ -36,6 +41,7 @@ namespace FeriMap
             if (cameraPivot == null && Camera.main != null) cameraPivot = Camera.main.transform;
             if (flashlight == null) flashlight = GetComponentInChildren<PS1Flashlight>();
             yaw = transform.eulerAngles.y;
+            if (GetComponent<FeriPlayerBody>() == null) gameObject.AddComponent<FeriPlayerBody>();   // first-person arms + legs
         }
 
         void Start()
@@ -76,11 +82,11 @@ namespace FeriMap
             }
             bool active = inputEnabled && Cursor.lockState == CursorLockMode.Locked;
 
-            if (active)
+            if (active && lookEnabled)
             {
                 Vector2 look = FeriInput.Look() * mouseSensitivity;
                 yaw += look.x;
-                pitch = Mathf.Clamp(pitch - look.y, -85f, 85f);
+                pitch = Mathf.Clamp(pitch - look.y, -85f, maxLookDown);
             }
             transform.rotation = Quaternion.Euler(0, yaw, 0);
 
@@ -121,12 +127,12 @@ namespace FeriMap
                 if (Physics.Raycast(ray, out RaycastHit hit, interactDistance, ~0, QueryTriggerInteraction.Collide))
                     hover = hit.collider.GetComponentInParent<FeriInteractable>();
             }
-            if (active && hover != null && FeriInput.Interact()) hover.Interact(this);
+            if (active && lookEnabled && hover != null && FeriInput.Interact()) hover.Interact(this);
         }
 
         void OnGUI()
         {
-            if (Event.current.type != EventType.Repaint) return;
+            if (Event.current.type != EventType.Repaint || !lookEnabled) return;
             GUI.depth = 0;
             float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
             float s = Mathf.Max(2f, Screen.height / 360f);

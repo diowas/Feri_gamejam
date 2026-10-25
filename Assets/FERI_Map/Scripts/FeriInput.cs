@@ -29,6 +29,12 @@ namespace FeriMap
             return (k != null && k.eKey.wasPressedThisFrame) || (m != null && m.leftButton.wasPressedThisFrame);
         }
         public static bool Flashlight() { var k = Keyboard.current; return k != null && k.fKey.wasPressedThisFrame; }
+        public static bool Watch() { var k = Keyboard.current; return k != null && k.tabKey.isPressed; }
+        public static bool NumberKey(int n)
+        {
+            var k = Keyboard.current; if (k == null || n < 0 || n > 9) return false;
+            return k[n == 0 ? Key.Digit0 : (Key)((int)Key.Digit1 + n - 1)].wasPressedThisFrame || k[(Key)((int)Key.Numpad0 + n)].wasPressedThisFrame;
+        }
         public static bool Escape() { var k = Keyboard.current; return k != null && k.escapeKey.wasPressedThisFrame; }
         public static bool Click() { var m = Mouse.current; return m != null && m.leftButton.wasPressedThisFrame; }
 #else
@@ -43,6 +49,8 @@ namespace FeriMap
         public static bool Crouch() { return Input.GetKey(KeyCode.LeftControl); }
         public static bool Interact() { return Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0); }
         public static bool Flashlight() { return Input.GetKeyDown(KeyCode.F); }
+        public static bool Watch() { return Input.GetKey(KeyCode.Tab); }
+        public static bool NumberKey(int n) { return n >= 0 && n <= 9 && (Input.GetKeyDown(KeyCode.Alpha0 + n) || Input.GetKeyDown(KeyCode.Keypad0 + n)); }
         public static bool Escape() { return Input.GetKeyDown(KeyCode.Escape); }
         public static bool Click() { return Input.GetMouseButtonDown(0); }
 #endif
