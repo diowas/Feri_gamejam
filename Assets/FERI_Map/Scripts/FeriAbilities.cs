@@ -1,7 +1,7 @@
 // The 5 switches on the hand display (FeriPlayerBody), in order. Each one runs on a timer (durations) and then
 // flips itself back off:
 //   1 FLASH  - a button, not a timer: every click spawns another comically big flashlight that floats in front of you and
-//              stays there. [E] puts one in your right palm with a fresh 5 s battery (HUD bottom right) that only drains
+//              stays there. [E] puts one in your right palm with a fresh 10 s battery (HUD bottom right) that only drains
 //              while it's on (F). It flickers in its last second and stays in your hand, dead, until you grab another.
 //   2 XRAY   - monsters glow through walls
 //   3 NOCLIP - walk through walls and props; a ray keeps the feet on the floor (FeriPlayer.noclip)
@@ -20,7 +20,7 @@ namespace FeriMap
         public const int Flash = 0, XRay = 1, NoClip = 2, Slow = 3, BHop = 4;
 
         [Tooltip("Seconds each ability lasts: FLASH, XRAY, NOCLIP, SLOW, BHOP.")]
-        public float[] durations = { 5f, 5f, 5f, 5f, 30f };
+        public float[] durations = { 10f, 5f, 5f, 5f, 30f };
 
         [Header("FLASH")]
         [Tooltip("Length of the spawned flashlight (metres).")]
@@ -69,6 +69,9 @@ namespace FeriMap
         void Start()
         {
             body = GetComponent<FeriPlayerBody>();
+            // the lights go out 30 s in (only where the map is lit by PS1Lighting, not e.g. the Prologue)
+            if (FindAnyObjectByType<PS1Lighting>() != null && GetComponent<FeriBlackout>() == null) gameObject.AddComponent<FeriBlackout>();
+            if (FindAnyObjectByType<PS1Lighting>() != null && GetComponent<FeriHauntedDoors>() == null) gameObject.AddComponent<FeriHauntedDoors>();
             if (flashlightOnlyFromAbility)
             {
                 player.flashlightKey = false;
@@ -395,6 +398,7 @@ namespace FeriMap
         // Battery HUD, bottom right, while the flashlight is in your hand: 5 chunky cells that drain with the FLASH timer.
         void OnGUI()
         {
+            GUI.depth = -5;   // above PS1Camera's game picture (depth 100)
             if (Event.current.type != EventType.Repaint || !player.enabled) return;
             DrawActiveAbilities();
             if (heldLight == null) return;

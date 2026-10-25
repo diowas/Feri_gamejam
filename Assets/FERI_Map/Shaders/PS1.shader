@@ -42,6 +42,7 @@ Shader "FERI/PS1"
             float4 _PS1_Snap;
             float  _PS1_Dither;
             float  _PS1_Exposure;
+            float  _PS1_Blackout;   // 0 = normal, 1 = every light and the baked lighting off (FeriBlackout)
             float  _PS1_LightCount;
             float4 _PS1_LightPos[16];
             float4 _PS1_LightCol[16];
@@ -101,7 +102,7 @@ Shader "FERI/PS1"
                         L += _PS1_LightCol[i].rgb * att * ndl * (1.0 - skip);
                     }
                 }
-                o.light = L;
+                o.light = lerp(L, float3(0.004, 0.004, 0.006), _PS1_Blackout);   // the flashlight (frag) still adds on top
 
                 float camDist = length(_WorldSpaceCameraPos.xyz - wp.xyz);
                 o.fog = (_PS1_FogRange.y > _PS1_FogRange.x) ? saturate((camDist - _PS1_FogRange.x) / (_PS1_FogRange.y - _PS1_FogRange.x)) : 0;
@@ -131,7 +132,7 @@ Shader "FERI/PS1"
                 light += _PS1_SpotCol.rgb * spot * att * att * ndl;
 
                 float expo = (_PS1_Exposure > 0) ? _PS1_Exposure : 1.0;
-                float3 col = lerp(tex.rgb * light * expo, tex.rgb, _Emission);
+                float3 col = lerp(tex.rgb * light * expo, tex.rgb, _Emission * (1.0 - _PS1_Blackout));   // lamps go dark in a blackout too
                 col = lerp(col, _PS1_FogColor.rgb, i.fog);
                 // added after fog so glowing eyes stay visible in the dark
                 col += tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
