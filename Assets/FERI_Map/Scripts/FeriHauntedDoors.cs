@@ -1,13 +1,15 @@
-// The doors stand open onto pitch black rooms. Once the lights go out (FeriBlackout), every 12-30 s a random one slams
-// shut, stays shut about a minute and then slowly creaks open again (only the slam makes a sound). The map's doors are only flat panels baked into the wall
-// geometry, so each one gets a
-// door leaf on a hinge laid over it, with a black "doorway" behind it that shows when it swings open.
-// The leaves have no collider: they can't push the player or block the monsters. The slam is synthesised.
+// The classroom doors (Hall, Alfa, Beta) stand open. Once the lights go out (FeriBlackout), every 12-30 s a random
+// one slams shut, stays shut about a minute and then slowly creaks open again (only the slam makes a sound).
+// The map bakes those doors into its merged meshes as leaves standing wide open (90 degrees, against the wall inside
+// the room), so this hides the baked leaves and puts a hinged leaf in exactly the same place, which can swing into
+// the doorway between the two steel jambs. The locked doors are painted on the walls and stay as they are.
+// A shut door blocks the player (a collider that's only on while it's fully shut, so a swinging leaf never shoves you):
+// the only way through is NOCLIP, and standing at one shows a hint for it top left (HintAlpha, drawn by FeriBlackout).
+// Monsters walk the NavMesh and ignore it. The slam is synthesised.
 // FeriAbilities adds this to the player.
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace FeriMap
 {
@@ -23,59 +25,65 @@ namespace FeriMap
         public float nearRadius = 25f;
         [Range(0f, 1f)] public float volume = 0.8f;
 
-        // centre, size, locked: the "door" / "door_locked" boxes from FERI_Map/Data/feri_layout.json (world space)
+        // From the "door" boxes in FERI_Map/Data/feri_layout.json: the hinge (bottom-centre height of the leaf, at the
+        // wall end of the open leaf), which way the open leaf points (+-z, into the room), and its width. Every doorway
+        // runs +x from the hinge, to the second steel jamb.
         struct DoorSpot
         {
-            public Vector3 c, s; public bool locked;
-            public DoorSpot(float x, float y, float z, float sx, float sy, float sz, bool l) { c = new Vector3(x, y, z); s = new Vector3(sx, sy, sz); locked = l; }
+            public Vector3 hinge; public float openZ, width;
+            public DoorSpot(float x, float y, float z, float oz, float w) { hinge = new Vector3(x, y, z); openZ = oz; width = w; }
         }
         static readonly DoorSpot[] Spots =
         {
-            new DoorSpot(22.02f, 1.05f, 27.39f, 0.04f, 2.1f, 0.98f, false),   // Hall
-            new DoorSpot(32.52f, 1.05f, 27.39f, 0.04f, 2.1f, 0.98f, false),
-            new DoorSpot(46.02f, 1.05f, 27.39f, 0.04f, 2.1f, 0.98f, false),
-            new DoorSpot(21.62f, 1.05f, 10.41f, 0.04f, 2.1f, 0.98f, false),
-            new DoorSpot(35.02f, 1.05f, 10.41f, 0.04f, 2.1f, 0.98f, false),
-            new DoorSpot(46.52f, 1.05f, 10.41f, 0.04f, 2.1f, 0.98f, false),
-            new DoorSpot(54.0f, 3.55f, 33.425f, 1.6f, 2.1f, 0.04f, true),     // HallNorth
-            new DoorSpot(59.15f, 1.05f, 38.5f, 0.04f, 2.1f, 1.0f, true),
-            new DoorSpot(15.46f, 3.05f, 5.3f, 0.04f, 2.1f, 1.0f, true),       // Passage
-            new DoorSpot(0.22f, 3.05f, 24.39f, 0.04f, 2.1f, 1.18f, false),    // Alfa
-            new DoorSpot(13.32f, 3.05f, 24.39f, 0.04f, 2.1f, 1.18f, false),
-            new DoorSpot(1.22f, 3.05f, 16.54f, 0.04f, 2.1f, 0.98f, false),    // Beta
-            new DoorSpot(9.62f, 3.05f, 15.26f, 0.04f, 2.1f, 0.98f, false),
-            new DoorSpot(-0.15f, -2.95f, 9.5f, 0.04f, 2.1f, 1.0f, true),      // ParkingL1
-            new DoorSpot(-0.15f, -6.45f, 9.5f, 0.04f, 2.1f, 1.0f, true),      // ParkingL2
-            new DoorSpot(7.15f, 19.05f, 12.0f, 0.04f, 2.1f, 1.0f, true),      // Cafeteria
-            new DoorSpot(7.15f, 19.05f, 19.8f, 0.04f, 2.1f, 1.0f, true),
+            new DoorSpot(22.02f, 1.05f, 26.90f, 1f, 0.98f),    // Hall, south side
+            new DoorSpot(32.52f, 1.05f, 26.90f, 1f, 0.98f),
+            new DoorSpot(46.02f, 1.05f, 26.90f, 1f, 0.98f),
+            new DoorSpot(21.62f, 1.05f, 10.90f, -1f, 0.98f),   // Hall, north side
+            new DoorSpot(35.02f, 1.05f, 10.90f, -1f, 0.98f),
+            new DoorSpot(46.52f, 1.05f, 10.90f, -1f, 0.98f),
+            new DoorSpot(0.22f, 3.05f, 23.80f, 1f, 1.18f),     // Alfa
+            new DoorSpot(13.32f, 3.05f, 23.80f, 1f, 1.18f),
+            new DoorSpot(1.22f, 3.05f, 16.05f, 1f, 0.98f),     // Beta
+            new DoorSpot(9.62f, 3.05f, 15.75f, -1f, 0.98f),
         };
+        const float LeafHeight = 2.1f, LeafThickness = 0.04f;
 
-        class Door { public Transform hinge; public float sign, open, w, h; public AudioSource audio; public bool busy; }
+        class Door { public Transform hinge; public float open; public AudioSource audio; public bool busy, shut; public Collider block; }
 
         readonly List<Door> doors = new List<Door>();
         FeriBlackout blackout;
         float next = -1f;
         static AudioClip slam;
 
+        [Tooltip("Show the NOCLIP hint when the player is this close to a shut door (metres).")]
+        public float hintDistance = 2.2f;
+        [Tooltip("How long the hint stays up each time you walk up to a shut door (seconds).")]
+        public float hintTime = 5f;
+        public const string Hint = "The door won't open";
+        public const string HintSub = "Hold Tab and turn on NOCLIP (3)";
+        /// <summary>0..1, how much of the NOCLIP hint to show top left (FeriBlackout draws it under the missions).</summary>
+        public static float HintAlpha { get; private set; }
+        bool wasNear;
+        float nearSince;
+        FeriPlayer player;
+
         void Start()
         {
             blackout = GetComponent<FeriBlackout>();
+            player = GetComponent<FeriPlayer>();
+            HintAlpha = 0f;
             if (slam == null) slam = MakeSlam();
-            Material wood = DoorMaterial("door"), locked = DoorMaterial("door_locked");
-            Material black = wood != null ? new Material(wood) : null;
-            if (black != null)
-            {
-                black.name = "Doorway (runtime)";
-                if (black.HasProperty("_MainTex")) black.SetTexture("_MainTex", null);
-                if (black.HasProperty("_Color")) black.SetColor("_Color", Color.black);
-                if (black.HasProperty("_EmissionColor")) black.SetColor("_EmissionColor", Color.black);
-            }
+            Material wood = DoorMaterial("door");
+            // hide the map's own (baked, wide open) leaves: ours stand in the same spot
+            foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+                if (r.gameObject.name == "door") r.enabled = false;
             var root = new GameObject("HauntedDoors").transform;
-            foreach (var s in Spots) doors.Add(Build(s, root, s.locked && locked != null ? locked : wood, black));
+            foreach (var s in Spots) doors.Add(Build(s, root, wood));
         }
 
         void Update()
         {
+            UpdateHint();
             if (doors.Count == 0) return;
             if (onlyAfterBlackout && blackout != null && !blackout.IsOut) return;
             if (next < 0f) next = Time.time + Random.Range(0.5f, 1.5f);   // the first one soon after the lights die
@@ -111,54 +119,51 @@ namespace FeriMap
             // a little bounce off the frame
             for (t = 0f; t < 0.15f; t += Time.deltaTime)
             {
-                d.hinge.localRotation = Quaternion.Euler(0f, Mathf.Sin(t / 0.15f * Mathf.PI) * 4f * d.sign, 0f);
+                d.hinge.localRotation = Quaternion.Euler(0f, Mathf.Sin(t / 0.15f * Mathf.PI) * 4f * Mathf.Sign(d.open), 0f);
                 yield return null;
             }
             d.hinge.localRotation = Quaternion.identity;
+            SetShut(d, true);
 
             yield return new WaitForSeconds(Random.Range(closedTime.x, closedTime.y));
+            SetShut(d, false);
 
             // then it slowly creaks back open, stuttering on the hinge
-            d.open = ClearAngle(d, Random.Range(55f, 95f));
             t = 0f; dur = Random.Range(2.5f, 4.5f);
             while (t < dur)
             {
                 t += Time.deltaTime;
                 float k = Mathf.SmoothStep(0f, 1f, t / dur);
                 float jitter = Mathf.Sin(t * 23f) * 1.5f * (1f - k);
-                d.hinge.localRotation = Quaternion.Euler(0f, d.open * k + jitter * d.sign, 0f);
+                d.hinge.localRotation = Quaternion.Euler(0f, d.open * k + jitter * Mathf.Sign(d.open), 0f);
                 yield return null;
             }
             d.hinge.localRotation = Quaternion.Euler(0f, d.open, 0f);
             d.busy = false;
         }
 
-        Door Build(DoorSpot s, Transform root, Material leafMat, Material blackMat)
+        Door Build(DoorSpot s, Transform root, Material leafMat)
         {
-            bool alongZ = s.s.x < s.s.z;                       // thin in x: the door faces +-x and is s.z wide
-            Vector3 n = alongZ ? Vector3.right : Vector3.forward;
-            float w = alongZ ? s.s.z : s.s.x, h = s.s.y;
-            n *= OpenSide(s.c, n, h);                           // the side you walk on
-            Quaternion rot = Quaternion.LookRotation(-n, Vector3.up);   // local +Z goes into the wall
-            Vector3 right = rot * Vector3.right;
-
+            // hinge frame: local +x along the closed door (across the doorway, +x in the world), so angle 0 = shut
+            Vector3 closedDir = Vector3.right, openDir = Vector3.forward * s.openZ;
             Transform frame = new GameObject("Door").transform;
             frame.SetParent(root, false);
-            frame.SetPositionAndRotation(s.c, rot);
+            frame.SetPositionAndRotation(s.hinge, Quaternion.LookRotation(Vector3.Cross(closedDir, Vector3.up), Vector3.up));
 
-            // black void over the painted door, only seen when the leaf swings away
-            var back = Box(frame, new Vector3(0f, 0f, -0.025f), new Vector3(w + 0.02f, h + 0.02f, 0.01f), blackMat);
-            back.name = "Doorway";
-
-            var d = new Door { sign = Random.value < 0.5f ? 1f : -1f };
-            // hinge on the left or the right edge; the leaf swings out towards you
+            var d = new Door { open = Vector3.SignedAngle(closedDir, openDir, Vector3.up) };   // the baked leaf's angle
             d.hinge = new GameObject("Hinge").transform;
             d.hinge.SetParent(frame, false);
-            d.hinge.localPosition = new Vector3(-d.sign * w * 0.5f, 0f, -0.055f);
-            Box(d.hinge, new Vector3(d.sign * w * 0.5f, 0f, 0f), new Vector3(w - 0.02f, h - 0.01f, 0.04f), leafMat).name = "Leaf";
-            d.w = w; d.h = h;
-            d.open = ClearAngle(d, Random.Range(55f, 95f));   // doors stand open until one slams
-            d.hinge.localRotation = Quaternion.Euler(0f, d.open, 0f);
+            Box(d.hinge, new Vector3(s.width * 0.5f, 0f, 0f), new Vector3(s.width, LeafHeight, LeafThickness), leafMat).name = "Leaf";
+            d.hinge.localRotation = Quaternion.Euler(0f, d.open, 0f);   // stands open, like the map had it
+
+            // the wall it makes while shut: across the doorway, a little thicker than the leaf
+            var wall = new GameObject("Shut").transform;
+            wall.SetParent(frame, false);
+            wall.localPosition = new Vector3(s.width * 0.5f, 0f, 0f);
+            var bc = wall.gameObject.AddComponent<BoxCollider>();
+            bc.size = new Vector3(s.width, LeafHeight, 0.12f);
+            bc.enabled = false;
+            d.block = bc;
 
             d.audio = frame.gameObject.AddComponent<AudioSource>();
             d.audio.spatialBlend = 1f;
@@ -169,45 +174,30 @@ namespace FeriMap
             return d;
         }
 
-        // The widest angle up to `want` (degrees, signed for this door) at which the leaf hits nothing: no swinging
-        // through walls, desks or the frame. The swept boxes skip the bit by the hinge, where it touches the wall.
-        float ClearAngle(Door d, float want)
+        static void SetShut(Door d, bool shut)
         {
-            Transform frame = d.hinge.parent;
-            Vector3 hingePos = d.hinge.position;
-            for (float a = want; a > 10f; a -= 5f)
-            {
-                bool hit = false;
-                for (float step = Mathf.Min(a, 15f); step <= a + 0.01f && !hit; step = Mathf.Min(step + 15f, a + 0.02f))
-                {
-                    Quaternion r = frame.rotation * Quaternion.Euler(0f, step * d.sign, 0f);
-                    Vector3 along = r * Vector3.right * d.sign;
-                    Vector3 centre = hingePos + along * (d.w * 0.5f + 0.06f);
-                    var half = new Vector3(Mathf.Max(0.05f, d.w * 0.5f - 0.12f), d.h * 0.5f - 0.12f, 0.03f);
-                    hit = Physics.CheckBox(centre, half, r, ~0, QueryTriggerInteraction.Ignore);
-                    if (step >= a) break;
-                }
-                if (!hit) return a * d.sign;
-            }
-            return 12f * d.sign;   // no room at all: barely ajar
+            d.shut = shut;
+            if (d.block != null) d.block.enabled = shut;
         }
 
-        // +1 or -1: which side of the wall has floor (NavMesh) in front of the door
-        static float OpenSide(Vector3 c, Vector3 n, float h)
+        // the NOCLIP hint: comes up when you walk up to a shut door (with NOCLIP off) and fades after a few seconds
+        void UpdateHint()
         {
-            Vector3 feet = c - Vector3.up * (h * 0.5f);
-            float a = NavMesh.SamplePosition(feet + n * 0.7f, out NavMeshHit ha, 0.6f, NavMesh.AllAreas) ? ha.distance : 99f;
-            float b = NavMesh.SamplePosition(feet - n * 0.7f, out NavMeshHit hb, 0.6f, NavMesh.AllAreas) ? hb.distance : 99f;
-            if (a < 99f || b < 99f) return a <= b ? 1f : -1f;
-            // no NavMesh there: the side that isn't straight into a wall
-            bool wallA = Physics.Raycast(c + n * 0.06f, n, 0.5f, ~0, QueryTriggerInteraction.Ignore);
-            return wallA ? -1f : 1f;
+            bool near = false;
+            if (player == null || !player.noclip)
+                foreach (var d in doors)
+                    if (d.shut && d.block != null && Vector3.Distance(d.block.ClosestPoint(transform.position), transform.position) < hintDistance)
+                    { near = true; break; }
+            if (near && !wasNear) nearSince = Time.time;
+            wasNear = near;
+            float target = near && Time.time - nearSince < hintTime ? 1f : 0f;
+            HintAlpha = Mathf.MoveTowards(HintAlpha, target, Time.deltaTime * 3f);
         }
 
         static Transform Box(Transform parent, Vector3 at, Vector3 size, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            DestroyImmediate(go.GetComponent<Collider>());   // now, so ClearAngle doesn't hit our own boxes
+            Destroy(go.GetComponent<Collider>());
             var t = go.transform;
             t.SetParent(parent, false);
             t.localPosition = at;

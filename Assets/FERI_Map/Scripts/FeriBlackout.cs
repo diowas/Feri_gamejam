@@ -202,7 +202,9 @@ namespace FeriMap
             if (FeriEscape.PowerObjective(out string line, out string sub))   // the elevator is dead: that comes first
                 y += MissionBox(y, u, line, sub, new Color(0.85f, 0.6f, 0.2f), 1f) + u * 4f;
             if (FeriEscape.Objective(out line, out sub))
-                MissionBox(y, u, line, sub, new Color(0.75f, 0.35f, 0.3f), 1f);
+                y += MissionBox(y, u, line, sub, new Color(0.75f, 0.35f, 0.3f), 1f) + u * 4f;
+            if (FeriHauntedDoors.HintAlpha > 0f)   // standing at a door that slammed shut
+                MissionBox(y, u, FeriHauntedDoors.Hint, FeriHauntedDoors.HintSub, new Color(0.55f, 0.75f, 1f), FeriHauntedDoors.HintAlpha);
         }
 
         float MissionBox(float y, float u, string line, string sub, Color accent, float fade)
