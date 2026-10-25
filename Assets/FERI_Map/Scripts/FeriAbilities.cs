@@ -20,7 +20,7 @@ namespace FeriMap
         public const int Flash = 0, XRay = 1, NoClip = 2, Slow = 3, BHop = 4;
 
         [Tooltip("Seconds each ability lasts: FLASH, XRAY, NOCLIP, SLOW, BHOP.")]
-        public float[] durations = { 10f, 5f, 5f, 5f, 30f };
+        public float[] durations = { 10f, 10f, 10f, 10f, 30f };
 
         [Header("FLASH")]
         [Tooltip("Length of the spawned flashlight (metres).")]
@@ -81,6 +81,15 @@ namespace FeriMap
         }
 
         bool IsOn(int i) => body != null && body.switches != null && i < body.switches.Length && body.switches[i];
+
+        /// <summary>"10s" style countdown for ability i (never above its full duration), null when it's off.</summary>
+        public string SecondsLabel(int i)
+        {
+            float left = Remaining(i);
+            if (left <= 0f) return null;
+            float total = durations != null && i < durations.Length ? durations[i] : 5f;
+            return Mathf.Clamp(Mathf.CeilToInt(left - 0.05f), 1, Mathf.CeilToInt(total)) + "s";
+        }
 
         /// <summary>Seconds left on ability i, 0 when it's off.</summary>
         public float Remaining(int i) => i >= 0 && i < until.Length && until[i] > 0f ? Mathf.Max(0f, until[i] - Time.time) : 0f;
@@ -396,36 +405,19 @@ namespace FeriMap
 
         float BatteryLife => durations != null && durations.Length > Flash ? durations[Flash] : 5f;
 
-        // Battery HUD, bottom right, while the flashlight is in your hand: 5 chunky cells that drain with the FLASH timer.
+        // While the flashlight is in your hand: the F hint, bottom right (the countdown is the top-right tile).
         void OnGUI()
         {
             GUI.depth = -5;   // above PS1Camera's game picture (depth 100)
             if (Event.current.type != EventType.Repaint || !player.enabled) return;
             DrawActiveAbilities();
-            if (heldLight == null) return;
-            float left = Remaining(Flash), k = Mathf.Clamp01(left / Mathf.Max(BatteryLife, 0.01f));
+            if (heldLight == null || Remaining(Flash) <= 0f) return;
             float u = Mathf.Max(2f, Screen.height / 360f);   // one PS1 pixel
-            float w = u * 40f, h = u * 16f, m = u * 10f;
-            var body = new Rect(Screen.width - m - w - u * 3f, Screen.height - m - h, w, h);
-            Color col = k > 0.5f ? new Color(0.35f, 0.95f, 0.45f) : k > 0.25f ? new Color(1f, 0.8f, 0.25f) : new Color(1f, 0.25f, 0.2f);
-            if (left < 1f && Mathf.Repeat(Time.time * 8f, 1f) < 0.5f) col.a = 0.25f;   // dying battery blinks
-
-            Box(new Rect(body.x - u, body.y - u, body.width + u * 2f, body.height + u * 2f), new Color(0, 0, 0, 0.75f));
-            Box(body, new Color(0.85f, 0.85f, 0.8f, 0.9f));                                                    // casing
-            Box(new Rect(body.xMax, body.y + h * 0.3f, u * 3f, h * 0.4f), new Color(0.85f, 0.85f, 0.8f, 0.9f));   // + terminal
-            Box(new Rect(body.x + u, body.y + u, body.width - u * 2f, body.height - u * 2f), new Color(0.05f, 0.05f, 0.05f, 0.95f));
-            const int Cells = 5;
-            float cw = (body.width - u * 2f - u * (Cells + 1)) / Cells;
-            int lit = Mathf.CeilToInt(k * Cells - 0.001f);
-            for (int i = 0; i < lit; i++)
-                Box(new Rect(body.x + u * 2f + i * (cw + u), body.y + u * 2f, cw, body.height - u * 4f), col);
-
-            // hint above the battery (gone once it's dead)
-            if (left <= 0f) { GUI.color = Color.white; return; }
+            float m = u * 10f;
             const string hint = "[F] Toggle flashlight";
             if (hintText == null) hintText = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.LowerRight, fontStyle = FontStyle.Bold };
             hintText.fontSize = Mathf.RoundToInt(u * 7f);
-            var hr = new Rect(Screen.width - m - u * 120f, body.y - u * 16f, u * 120f - u * 2f, u * 12f);
+            var hr = new Rect(Screen.width - m - u * 120f, Screen.height - m - u * 12f, u * 120f, u * 12f);
             GUI.color = new Color(0f, 0f, 0f, 0.9f);
             GUI.Label(new Rect(hr.x + u * 0.7f, hr.y + u * 0.7f, hr.width, hr.height), hint, hintText);
             GUI.color = new Color(1f, 0.9f, 0.6f);
@@ -475,7 +467,7 @@ namespace FeriMap
                 }
                 Box(new Rect(r.x, r.yMax + u, r.width * k, u * 2f), c);   // bar under the tile
 
-                string secs = Mathf.CeilToInt(left) + "s";
+                string secs = SecondsLabel(i);
                 GUI.color = new Color(0f, 0f, 0f, 0.9f);
                 GUI.Label(new Rect(r.x + u * 0.7f, r.yMax + u * 3.7f, r.width, u * 10f), secs, hudText);   // drop shadow
                 GUI.color = c;
@@ -558,6 +550,7 @@ namespace FeriMap
             foreach (var m in FindObjectsByType<NullRefEntity>(FindObjectsSortMode.None)) yield return m;
             foreach (var m in FindObjectsByType<CeilingWatcher>(FindObjectsSortMode.None)) yield return m;
             foreach (var m in FindObjectsByType<FloatingEyes>(FindObjectsSortMode.None)) yield return m;
+            if (FeriEscape.Key != null) yield return FeriEscape.Key.transform;   // the elevator key shows through walls too
         }
     }
 }

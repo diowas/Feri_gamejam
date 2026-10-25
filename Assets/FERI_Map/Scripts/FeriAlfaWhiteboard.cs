@@ -1,7 +1,7 @@
 // Dressing for the blackout and the escape (FeriBlackout calls Setup once): the whiteboards at the front of Alfa (their
 // texture has been wiped clean) have red marker on them that faintly glows in the dark.
 //   middle board: THEY'RE WATCHING
-//   left board:   IF YOU WANT TO ESCAPE, GET TO THE FIFTH FLOOR. YOU HAVE 15 MINUTES.  (reading it starts FeriEscape)
+//   left board:   IF YOU WANT TO ESCAPE, GET TO THE FIFTH FLOOR. YOU HAVE 10 MINUTES.  (reading it starts FeriEscape)
 using UnityEngine;
 
 namespace FeriMap
@@ -19,7 +19,7 @@ namespace FeriMap
             // a quad faces -z already: towards the seats; slightly crooked
             FeriScrawl.Decal("WhiteboardWriting", new[] { "THEY'RE WATCHING" }, MiddleBoard, Quaternion.Euler(0f, 0f, -2.5f),
                 0.2f, 3, Ink, Glow, true, 66, "whiteboard");
-            FeriScrawl.Decal("EscapeWriting", new[] { "IF YOU WANT TO ESCAPE,", "GET TO THE FIFTH FLOOR.", "YOU HAVE 15 MINUTES." },
+            FeriScrawl.Decal("EscapeWriting", new[] { "IF YOU WANT TO ESCAPE,", "GET TO THE FIFTH FLOOR.", "YOU HAVE 10 MINUTES." },
                 LeftBoard, Quaternion.Euler(0f, 0f, 1.5f), 0.13f, 2, Ink, Glow, true, 15, "whiteboard");
         }
     }

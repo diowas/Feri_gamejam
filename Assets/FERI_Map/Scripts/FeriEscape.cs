@@ -1,5 +1,5 @@
-// The escape. Reading the left whiteboard in Alfa ("IF YOU WANT TO ESCAPE, GET TO THE FIFTH FLOOR. YOU HAVE 15 MINUTES.")
-// starts a 15 minute timer (top right) and the player says "I have to hurry.". Then:
+// The escape. Reading the left whiteboard in Alfa ("IF YOU WANT TO ESCAPE, GET TO THE FIFTH FLOOR. YOU HAVE 10 MINUTES.")
+// starts a 10 minute timer (top right) and the player says "I have to hurry.". Then:
 //   1. the elevator has a new button, 5 (the roof), that only works with a key in the keyhole next to it
 //   2. a note on the desk in P02 says the key is in the parking garage, lowest floor (on the roof of the blue car)
 //   3. the first time the elevator gets down there, it dies: lights out, buttons dead
@@ -15,7 +15,7 @@ namespace FeriMap
     public class FeriEscape : MonoBehaviour
     {
         [Tooltip("Seconds to get to the fifth floor.")]
-        public float timeLimit = 15f * 60f;
+        public float timeLimit = 10f * 60f;
         [Tooltip("Reading the board from this far away counts (metres).")]
         public float readDistance = 14f;
         public Vector3 notePosition = new Vector3(37.55f, 0.762f, 32.3f);     // P02, the desk at the front
@@ -36,6 +36,10 @@ namespace FeriMap
         int roofIndex = -1, lowestIndex = -1;
         float cutAt = -1f;
         GameObject key, keyInSlot;
+        Material keyGlow;
+        GameObject roofBlocker;   // invisible wall in the cabin doorway once you're on the roof
+        /// <summary>The key lying in the garage (null once taken), so XRAY can show it.</summary>
+        public static GameObject Key { get; private set; }
         Transform breakerHandle;
         Material breakerLamp;
         bool reading;
@@ -69,6 +73,9 @@ namespace FeriMap
                 if (timeLeft <= 0f) { TimeUp(); return; }
             }
             if (cutAt > 0f && Time.time >= cutAt) { cutAt = -1f; CutPower(); }
+            if (roofBlocker != null && roofBlocker.activeSelf != escaped) roofBlocker.SetActive(escaped);
+            if (keyGlow != null)   // the key on the car pulses a little so you can spot it
+                keyGlow.SetColor("_EmissionColor", new Color(0.55f, 0.4f, 0.1f) * (0.6f + 0.4f * Mathf.Sin(Time.time * 3f)));
             if (reading && (Time.time - readingSince > 8f || Vector3.Distance(transform.position, notePosition) > 2.5f)) reading = false;
             if (breakerLamp != null)
             {
@@ -145,6 +152,7 @@ namespace FeriMap
                 ledRect = new Vector4(0.75f, 0.4375f, 0.84375f, 0.5f),   // "ledblank" in the atlas: no digit for 5
             });
             elevator.Arrived += OnArrived;
+            BuildRoofBlocker();
             if (powerCut && !powerFixed) elevator.SetPowered(false);
 
             // button 5 above 4, keyhole above 3 (copies of those buttons, with their own little textures)
@@ -162,6 +170,14 @@ namespace FeriMap
                 var t5 = Resources.Load<Texture2D>("FeriButton5");
                 if (t5 != null) { t5.filterMode = FilterMode.Point; t5.wrapMode = TextureWrapMode.Clamp; }
                 Retexture(b5.GetComponent<Renderer>(), t5 != null ? t5 : ButtonTexture(true), new Vector4(0.6875f, 0.5625f, 0.75f, 0.625f));   // btn4's atlas rect
+            }
+            // the old "-3" button reads S now (Resources/FeriButtonS.png: the atlas's "-3" button with an S on it)
+            Transform bm3 = Find(elevator.cabin, "Btn_-3");
+            var tS = Resources.Load<Texture2D>("FeriButtonS");
+            if (bm3 != null && tS != null)
+            {
+                tS.filterMode = FilterMode.Point; tS.wrapMode = TextureWrapMode.Clamp;
+                Retexture(bm3.GetComponent<Renderer>(), tS, new Vector4(0.25f, 0.5625f, 0.3125f, 0.625f));   // btn-3's atlas rect
             }
             if (b3 != null)
             {
@@ -190,6 +206,21 @@ namespace FeriMap
         {
             if (floor == lowestIndex && started && !powerCut) cutAt = Time.time + 2.2f;   // once the doors are open
             if (floor == roofIndex) escaped = true;
+        }
+
+        // the roof is the end: the doors open onto it, but you stay in the cabin. The two cabin doors slide apart
+        // symmetrically, so their midpoint is always the middle of the doorway, whether they're open or not.
+        void BuildRoofBlocker()
+        {
+            Transform a = elevator.cabinDoorA, b = elevator.cabinDoorB;
+            if (a == null || b == null || a.parent == null) return;
+            roofBlocker = new GameObject("RoofDoorBlocker");
+            roofBlocker.transform.SetParent(a.parent, false);
+            roofBlocker.transform.localPosition = (a.localPosition + b.localPosition) * 0.5f;
+            Vector3 slide = elevator.doorSlideAxis.normalized, across = Vector3.Cross(slide, Vector3.up).normalized;
+            Vector3 size = slide * 1.6f + Vector3.up * 3f + across * 0.2f;
+            roofBlocker.AddComponent<BoxCollider>().size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z));
+            roofBlocker.SetActive(escaped);
         }
 
         void CutPower()
@@ -222,15 +253,18 @@ namespace FeriMap
         // ------------------------------------------------------------------ the key (parking -2)
         void BuildKey()
         {
-            key = MakeKey(null, 1f);
+            key = MakeKey(null, 1.4f);
             key.transform.position = keyPosition;
+            Key = key;
+            keyGlow = key.GetComponentInChildren<Renderer>().sharedMaterial;
+            if (!keyGlow.HasProperty("_EmissionColor")) keyGlow = null;
             key.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
             var col = key.AddComponent<BoxCollider>();
             col.isTrigger = true;
             col.size = new Vector3(0.35f, 0.15f, 0.35f);
             var q = key.AddComponent<FeriQuestInteractable>();
             q.prompt = () => "[E] Take the elevator key";
-            q.action = () => { hasKey = true; Destroy(key); };
+            q.action = () => { hasKey = true; Key = null; keyGlow = null; Destroy(key); };
         }
 
         // a chunky brass key lying flat: ring, blade, teeth; scale 1 is about 12 cm long

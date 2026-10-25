@@ -226,8 +226,7 @@ namespace FeriMap
         string Seconds(int i)
         {
             if (abilities == null) abilities = GetComponent<FeriAbilities>();
-            float left = abilities != null ? abilities.Remaining(i) : 0f;
-            return left > 0f ? Mathf.CeilToInt(left) + "s" : null;
+            return abilities != null ? abilities.SecondsLabel(i) : null;
         }
 
         // 12x12 pixel icons for the switches: FLASH, XRAY, NOCLIP, SLOW, BHOP ('#' = lit)

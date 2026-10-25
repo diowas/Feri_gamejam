@@ -30970,7 +30970,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FeriMap.FeriElevator
   floors:
-  - label: -3
+  - label: S
     y: -11
     enabled: 0
     landingDoorA: {fileID: 0}
