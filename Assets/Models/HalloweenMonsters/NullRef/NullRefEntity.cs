@@ -97,7 +97,7 @@ public class NullRefEntity : MonoBehaviour
             mf.sharedMesh = m;
             meshes.Add(new MeshState { mesh = m, baseVerts = m.vertices, work = new Vector3[m.vertexCount], center = m.bounds.center });
         }
-        nextExplosion = Time.time + Random.Range(1f, explosionInterval);
+        nextExplosion = FeriMap.FeriSlow.Time + Random.Range(1f, explosionInterval);
     }
 
     void Update()
@@ -113,7 +113,7 @@ public class NullRefEntity : MonoBehaviour
         if (seesPlayer && dist < catchDistance) { Catch(); return; }
 
         // ---- movement: only when nobody is looking, and only toward where it last saw you
-        stepTimer += Time.deltaTime;
+        stepTimer += FeriMap.FeriSlow.DeltaTime;
         if (watched || !hunting || !agent.isOnNavMesh)
         {
             unseenTimer = 0;
@@ -121,7 +121,7 @@ public class NullRefEntity : MonoBehaviour
         }
         else
         {
-            unseenTimer += Time.deltaTime;
+            unseenTimer += FeriMap.FeriSlow.DeltaTime;
             agent.isStopped = false;
             agent.SetDestination(NavMesh.SamplePosition(lastKnown, out var goal, 3f, NavMesh.AllAreas) ? goal.position : lastKnown);
             // reached the spot where it lost you: it gives up and waits there
@@ -142,16 +142,16 @@ public class NullRefEntity : MonoBehaviour
         if (watched) FacePlayer(flatTo);              // it still turns to stare, in snapped steps
 
         // ---- glitch mesh
-        if (Time.time >= nextExplosion) StartExplosion();
+        if (FeriMap.FeriSlow.Time >= nextExplosion) StartExplosion();
         float proximity = Mathf.InverseLerp(15f, catchDistance, dist);
         float jitter = watched ? watchedJitter * (0.3f + proximity * 2f) : 0f;
-        UpdateMeshes(jitter, Time.time < explosionEnd);
+        UpdateMeshes(jitter, FeriMap.FeriSlow.Time < explosionEnd);
 
         if (proximityHum) proximityHum.volume = proximity;
 
         // candle flicker; flares and dies on explosions, burns brighter the closer it gets
-        float flicker = Mathf.PerlinNoise(Time.time * 9f, 0.3f) * 0.6f + 0.4f;
-        if (Time.time < explosionEnd) flicker = Random.value < 0.5f ? 0f : 3f;
+        float flicker = Mathf.PerlinNoise(FeriMap.FeriSlow.Time * 9f, 0.3f) * 0.6f + 0.4f;
+        if (FeriMap.FeriSlow.Time < explosionEnd) flicker = Random.value < 0.5f ? 0f : 3f;
         float glow = glowIntensity * flicker * (0.6f + proximity);
         if (headGlow) headGlow.intensity = glow;
         if (glowRenderer) glowRenderer.material.SetColor("_EmissionColor", glowColor * glow);
@@ -222,8 +222,8 @@ public class NullRefEntity : MonoBehaviour
         int total = 0; foreach (var s in meshes) total += s.baseVerts.Length;
         int count = Mathf.Max(1, Mathf.RoundToInt(total * explosionVertexFraction));
         for (int i = 0; i < count; i++) exploding.Add(Random.Range(0, total));
-        explosionEnd = Time.time + explosionLength;
-        nextExplosion = Time.time + explosionInterval * Random.Range(0.5f, 1.5f);
+        explosionEnd = FeriMap.FeriSlow.Time + explosionLength;
+        nextExplosion = FeriMap.FeriSlow.Time + explosionInterval * Random.Range(0.5f, 1.5f);
         if (glitchAudio) { glitchAudio.pitch = Random.Range(0.7f, 1.4f); glitchAudio.Play(); }
     }
 
