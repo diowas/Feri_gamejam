@@ -10,6 +10,7 @@
 // (a NavMeshAgent is added for you) so it paths around walls and up the stairs.
 // Keep the entity on the "Ignore Raycast" layer (or give it no colliders) so it doesn't
 // block its own line-of-sight checks.
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -53,13 +54,21 @@ public class NullRefEntity : MonoBehaviour
     public Color glowColor = new Color(1f, 0.45f, 0.08f);
     public float glowIntensity = 1.5f;
 
+    [Header("Catch jumpscare")]
+    public MonoBehaviour[] disableOnCatch = new MonoBehaviour[0];   // extra movement / mouse-look scripts (FeriPlayer is handled for you)
+    public float jumpscareTime = 1.6f;
+    public AudioClip catchScream;
+
     [Header("Events")]
     public UnityEvent onCaughtPlayer;           // nothing hooked up -> reloads the scene
+
+    public bool HasCaught => caught;
 
     class MeshState { public Mesh mesh; public Vector3[] baseVerts, work; public Vector3 center; }
     readonly List<MeshState> meshes = new List<MeshState>();
     readonly HashSet<int> exploding = new HashSet<int>();
     Renderer[] renderers;
+    Renderer headPart;
     NavMeshAgent agent;
     Transform playerBody;
     Vector3 lastKnown;
@@ -89,6 +98,7 @@ public class NullRefEntity : MonoBehaviour
         }
         agent.updatePosition = false; agent.updateRotation = false; agent.speed = slideSpeed;
         renderers = GetComponentsInChildren<Renderer>();
+        foreach (var r in renderers) if (r.name.ToLowerInvariant().Contains("head")) { headPart = r; break; }
         foreach (var mf in GetComponentsInChildren<MeshFilter>())
         {
             var m = Instantiate(mf.sharedMesh);          // never edit the imported asset
@@ -249,7 +259,46 @@ public class NullRefEntity : MonoBehaviour
     void Catch()
     {
         caught = true;
-        explosionStretch *= 3f; StartExplosion(); UpdateMeshes(watchedJitter * 4f, true);
+        StartCoroutine(CatchRoutine());
+    }
+
+    // it snaps right in front of you, your head is yanked up into the pumpkin, and it tears itself apart
+    IEnumerator CatchRoutine()
+    {
+        if (agent.isOnNavMesh) agent.isStopped = true;
+        if (disableOnCatch != null) foreach (var b in disableOnCatch) if (b) b.enabled = false;
+        var player = playerBody ? playerBody.GetComponent<FeriMap.FeriPlayer>() : null;
+        if (player) player.inputEnabled = false;
+
+        Transform cam = playerCamera.transform;
+        Vector3 fwd = cam.forward; fwd.y = 0f;
+        if (fwd.sqrMagnitude < 0.01f) { fwd = transform.position - cam.position; fwd.y = 0f; }
+        fwd.Normalize();
+        Vector3 spot = cam.position + fwd * 0.9f;
+        spot.y = playerBody ? playerBody.position.y : transform.position.y;
+        transform.position = spot;
+        transform.rotation = Quaternion.LookRotation(-fwd);
+
+        var mpb = new MaterialPropertyBlock();
+        foreach (var r in renderers) JumpscareDirector.MakeSelfLit(r, mpb, 0.7f);   // visible even in the blackout
+        if (catchScream) AudioSource.PlayClipAtPoint(catchScream, cam.position);
+        if (proximityHum) proximityHum.volume = 1f;
+
+        explosionStretch *= 3f;
+        float fov = playerCamera.fieldOfView, nextBurst = 0f;
+        Quaternion look = cam.rotation;
+        for (float t = 0f; t < jumpscareTime; t += Time.deltaTime)
+        {
+            if (t >= nextBurst) { StartExplosion(); nextBurst = t + Random.Range(0.08f, 0.2f); }
+            UpdateMeshes(watchedJitter * 4f, Random.value < 0.6f);
+            Vector3 head = headPart ? headPart.bounds.center : transform.position + Vector3.up * 2.4f;
+            look = Quaternion.Slerp(look, Quaternion.LookRotation(head - cam.position), 1f - Mathf.Exp(-18f * Time.deltaTime));
+            cam.rotation = look;
+            playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, fov * 0.6f, 1f - Mathf.Exp(-6f * Time.deltaTime));
+            if (headGlow) headGlow.intensity = Random.value < 0.5f ? 0f : glowIntensity * 4f;   // the candle strobes
+            yield return null;
+        }
+        playerCamera.fieldOfView = fov;
         if (onCaughtPlayer != null && onCaughtPlayer.GetPersistentEventCount() > 0) onCaughtPlayer.Invoke();
         else SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
