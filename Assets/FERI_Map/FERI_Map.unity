@@ -25438,13 +25438,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FeriMap.PS1Lighting
   ambient: {r: 0.05, g: 0.05, b: 0.06, a: 1}
-  exposure: 1.6
+  exposure: 0.225
+  fog: 0
   fogColor: {r: 0, g: 0, b: 0, a: 1}
   fogStart: 6
   fogEnd: 34
-  vertexSnap: 1
+  vertexSnap: 0
   snapResolution: {x: 320, y: 240}
   dither: 1
+  ditherStrength: 0.35
+  affineWarp: 0
 --- !u!1 &1019114124
 GameObject:
   m_ObjectHideFlags: 0
@@ -48005,7 +48008,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FeriMap.PS1Camera
   lowRes: 1
-  verticalResolution: 240
+  verticalResolution: 480
 --- !u!81 &1868211916
 AudioListener:
   m_ObjectHideFlags: 0
