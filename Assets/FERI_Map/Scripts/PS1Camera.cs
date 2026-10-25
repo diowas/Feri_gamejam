@@ -6,8 +6,9 @@ namespace FeriMap
     [RequireComponent(typeof(Camera))]
     public class PS1Camera : MonoBehaviour
     {
+        // A softer retro image without the original 240p pixelation.
         public bool lowRes = true;
-        [Range(120, 720)] public int verticalResolution = 240;
+        [Range(120, 720)] public int verticalResolution = 480;
 
         Camera cam;
         RenderTexture rt;
@@ -45,7 +46,7 @@ namespace FeriMap
             int w = Mathf.Max(1, Mathf.RoundToInt(h * (float)Screen.width / Mathf.Max(1, Screen.height)));
             if (rt != null) { cam.targetTexture = null; rt.Release(); Destroy(rt); }
             rt = new RenderTexture(w, h, 24);
-            rt.filterMode = FilterMode.Point;
+            rt.filterMode = FilterMode.Bilinear;
             rt.name = "PS1_LowRes";
             rt.Create();
             cam.targetTexture = rt;

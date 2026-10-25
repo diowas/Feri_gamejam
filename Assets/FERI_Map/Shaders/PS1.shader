@@ -41,6 +41,7 @@ Shader "FERI/PS1"
             float4 _PS1_FogRange;
             float4 _PS1_Snap;
             float  _PS1_Dither;
+            float  _PS1_DisableAffine;
             float  _PS1_Exposure;
             float  _PS1_Blackout;   // 0 = normal, 1 = every light and the baked lighting off (FeriBlackout)
             float  _PS1_LightCount;
@@ -83,7 +84,7 @@ Shader "FERI/PS1"
                 o.pos = cp;
 
                 float2 uv = TRANSFORM_TEX(v.uv, _MainTex);
-                float aff = lerp(1.0, max(cp.w, 0.0001), _Affine);
+                float aff = lerp(1.0, max(cp.w, 0.0001), _Affine * (1.0 - _PS1_DisableAffine));
                 o.uvw = float3(uv * aff, aff);
 
                 float3 L = (_UseVertexColor > 0.5) ? v.color.rgb : _PS1_Ambient.rgb;
@@ -137,12 +138,13 @@ Shader "FERI/PS1"
                 // added after fog so glowing eyes stay visible in the dark
                 col += tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
 
-                if (_PS1_Dither > 0.5)
+                if (_PS1_Dither > 0.0)
                 {
                     float2 px = floor(i.spos.xy / max(i.spos.w, 0.0001) * _ScreenParams.xy);
                     int idx = (int)(fmod(px.x, 4.0) + fmod(px.y, 4.0) * 4.0);
                     float b = bayer[idx] / 16.0 - 0.5;
-                    col = floor(col * 31.0 + 0.5 + b) / 31.0;
+                    float3 quantized = floor(col * 31.0 + 0.5 + b) / 31.0;
+                    col = lerp(col, quantized, saturate(_PS1_Dither));
                 }
                 return fixed4(col, tex.a);
             }

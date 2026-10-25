@@ -131,6 +131,47 @@ namespace FeriMap.EditorTools
             EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
         }
 
+        [MenuItem("FERI/Ponovno zgradi stopnice (StairsDown)", false, 22)]
+        public static void RebuildStairsMenu() { RebuildGroup("StairsDown"); }
+
+        // Rebuilds one group of the layout (its Geometry and Colliders children) in the open scene, leaving the rest of
+        // the map and FERI_Meshes.asset alone: the new meshes go to Generated/FERI_<group>.asset. Save the scene after.
+        public static void RebuildGroup(string group)
+        {
+            GameObject rootGo = GameObject.Find(RootName);
+            if (rootGo == null) { EditorUtility.DisplayDialog("FERI", "V sceni ni objekta " + RootName + ".", "OK"); return; }
+            string baseDir = FindBaseDir();
+            Shader shader = Shader.Find("FERI/PS1");
+            if (baseDir == null || shader == null) { EditorUtility.DisplayDialog("FERI", "Ne najdem layouta ali shaderja FERI/PS1.", "OK"); return; }
+
+            var C = new Ctx();
+            C.baseDir = baseDir;
+            C.L = JsonUtility.FromJson<Layout>(File.ReadAllText(baseDir + "/Data/feri_layout.json"));
+            PS1Lighting lighting = rootGo.GetComponentInChildren<PS1Lighting>(true);
+            C.ambient = lighting != null ? lighting.ambient : ToColor(C.L.settings.ambient, new Color(0.05f, 0.05f, 0.06f));
+            if (C.L.atlas != null) foreach (var a in C.L.atlas) C.atlas[a.name] = a.rect;
+            foreach (LMat m in C.L.materials) { C.matInfo[m.name] = m; C.mats[m.name] = GetMaterial(C, m, shader); }
+            C.root = rootGo.transform;
+
+            Transform geo = Child(rootGo.transform, "Geometry"), cols = Child(rootGo.transform, "Colliders");
+            foreach (Transform parent in new[] { geo.Find(group), cols.Find(group) })
+                if (parent != null) UnityEngine.Object.DestroyImmediate(parent.gameObject);
+
+            BuildGeometry(C, geo, cols, group);
+
+            string meshPath = baseDir + "/Generated/FERI_" + group + ".asset";
+            AssetDatabase.DeleteAsset(meshPath);
+            for (int i = 0; i < C.meshes.Count; i++)
+            {
+                if (i == 0) AssetDatabase.CreateAsset(C.meshes[0], meshPath);
+                else AssetDatabase.AddObjectToAsset(C.meshes[i], meshPath);
+            }
+            Bake(C.bakeTargets, C.ambient);
+            AssetDatabase.SaveAssets();
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            Debug.Log("[FERI] " + group + " zgrajen znova: " + C.meshes.Count + " mrez. Shrani sceno (Ctrl+S).");
+        }
+
         [MenuItem("FERI/Pretvori izbrane materiale v PS1", false, 40)]
         public static void ConvertSelected()
         {
@@ -492,7 +533,7 @@ namespace FeriMap.EditorTools
 
         static bool IsGlass(LMat m) { return m != null && m.mode == "transparent"; }
 
-        static void BuildGeometry(Ctx C, Transform geo, Transform cols)
+        static void BuildGeometry(Ctx C, Transform geo, Transform cols, string onlyGroup = null)
         {
             var render = new Dictionary<string, Acc>();
             var renderKey = new Dictionary<string, KeyValuePair<string, string>>();
@@ -501,7 +542,7 @@ namespace FeriMap.EditorTools
 
             foreach (LBox b in C.L.boxes)
             {
-                if (b.li >= 0) continue;
+                if (b.li >= 0 || (onlyGroup != null && b.g != onlyGroup)) continue;
                 LMat mi; C.matInfo.TryGetValue(b.m, out mi);
                 Vector3 c = V3(b.c), s = V3(b.s);
                 bool rotated = b.r != null && b.r.Length == 3 && (b.r[0] != 0 || b.r[1] != 0 || b.r[2] != 0);
@@ -536,6 +577,7 @@ namespace FeriMap.EditorTools
 
             foreach (LCyl cy in C.L.cyls)
             {
+                if (onlyGroup != null && cy.g != onlyGroup) continue;
                 LMat mi; C.matInfo.TryGetValue(cy.m, out mi);
                 string key = cy.g + "|" + cy.m;
                 Acc ra;

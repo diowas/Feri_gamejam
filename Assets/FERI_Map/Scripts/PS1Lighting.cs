@@ -10,17 +10,20 @@ namespace FeriMap
         [Header("Osvetlitev")]
         public Color ambient = new Color(0.05f, 0.05f, 0.06f);
         [Tooltip("Mnozilnik svetlosti (vse PS1 materiale).")]
-        public float exposure = 1.6f;
+        public float exposure = 0.225f;
 
         [Header("Megla")]
+        public bool fog = false;
         public Color fogColor = Color.black;
         public float fogStart = 6f;
         public float fogEnd = 34f;
 
         [Header("PS1 efekti")]
-        public bool vertexSnap = true;
+        public bool vertexSnap = false;
         public Vector2 snapResolution = new Vector2(320, 240);
         public bool dither = true;
+        [Range(0f, 1f)] public float ditherStrength = 0.35f;
+        public bool affineWarp = false;
 
         public const int MaxLights = 16;
 
@@ -33,6 +36,7 @@ namespace FeriMap
         static readonly int IdFogRange = Shader.PropertyToID("_PS1_FogRange");
         static readonly int IdSnap = Shader.PropertyToID("_PS1_Snap");
         static readonly int IdDither = Shader.PropertyToID("_PS1_Dither");
+        static readonly int IdDisableAffine = Shader.PropertyToID("_PS1_DisableAffine");
         static readonly int IdExposure = Shader.PropertyToID("_PS1_Exposure");
         static readonly int IdCount = Shader.PropertyToID("_PS1_LightCount");
         static readonly int IdPos = Shader.PropertyToID("_PS1_LightPos");
@@ -60,10 +64,11 @@ namespace FeriMap
         {
             Shader.SetGlobalColor(IdAmbient, ambient);
             Shader.SetGlobalColor(IdFogColor, fogColor);
-            Shader.SetGlobalVector(IdFogRange, new Vector4(fogStart, fogEnd, 0, 0));
+            Shader.SetGlobalVector(IdFogRange, fog ? new Vector4(fogStart, fogEnd, 0, 0) : Vector4.zero);
             Shader.SetGlobalVector(IdSnap, new Vector4(snapResolution.x, snapResolution.y,
                 (vertexSnap && Application.isPlaying) ? 1f : 0f, 0));
-            Shader.SetGlobalFloat(IdDither, dither ? 1f : 0f);
+            Shader.SetGlobalFloat(IdDither, dither ? ditherStrength : 0f);
+            Shader.SetGlobalFloat(IdDisableAffine, affineWarp ? 0f : 1f);
             Shader.SetGlobalFloat(IdExposure, exposure);
 
             Vector3 vp = ViewerPosition();
