@@ -17,6 +17,11 @@ public class FloatingEyes : MonoBehaviour
     [Header("Target")]
     public Camera playerCamera;                    // empty -> Camera.main
 
+    [Header("Floors")]
+    [Tooltip("Floor heights (Y) where the eyes hunt. Default: floor 0 and floor 4 of the FERI building.")]
+    public float[] huntFloors = { 2f, 18f };
+    public float floorHeight = 4f;                 // floor-to-floor spacing on those floors
+
     [Header("Hovering")]
     public float ceilingGap = 0.35f;               // how far below the ceiling they float
     public float fallbackHeight = 2.6f;            // used if no ceiling is found above them
@@ -68,6 +73,12 @@ public class FloatingEyes : MonoBehaviour
         if (!playerCamera || vanishing) return;
         float dt = Time.deltaTime;
         Transform cam = playerCamera.transform;
+
+        // ---- only on the hunt floors: elsewhere they hang still; on another floor than you they blink over to yours
+        int playerFloor = FloorOf(cam.position.y);
+        if (playerFloor < 0) { stareTimer = 0; return; }
+        if (FloorOf(transform.position.y) != playerFloor) { StartCoroutine(BlinkOut(true)); return; }
+
         Vector3 toMe = transform.position - cam.position;
         float dist = toMe.magnitude;
         float facing = Vector3.Dot(cam.forward, toMe / Mathf.Max(dist, 0.001f));
@@ -127,7 +138,16 @@ public class FloatingEyes : MonoBehaviour
         return fallbackHeight;
     }
 
-    System.Collections.IEnumerator BlinkOut()
+    // index into huntFloors of the floor containing height y, or -1
+    int FloorOf(float y)
+    {
+        for (int i = 0; i < huntFloors.Length; i++)
+            if (y >= huntFloors[i] - 0.5f && y < huntFloors[i] + floorHeight) return i;
+        return -1;
+    }
+
+    // relocating = just moving to the player's floor, not a stare-out, so the events stay quiet
+    System.Collections.IEnumerator BlinkOut(bool relocating = false)
     {
         vanishing = true; stareTimer = 0;
         // squash shut like a blink, glitch-fast
@@ -137,16 +157,20 @@ public class FloatingEyes : MonoBehaviour
             yield return null;
         }
         transform.localScale = Vector3.zero; SetGlow(0);
-        onVanished?.Invoke();
+        if (!relocating) onVanished?.Invoke();
         yield return new WaitForSeconds(Random.Range(1.5f, 4f));
 
-        // reappear behind the player, under the ceiling
+        // reappear behind the player, under the ceiling (or right where they were, if the player left the hunt floors)
         Transform cam = playerCamera.transform;
-        Vector3 back = -cam.forward; back.y = 0; back.Normalize();
-        Vector3 p = cam.position + Quaternion.Euler(0, Random.Range(-50f, 50f), 0) * back * reappearDistance;
-        if (Physics.Linecast(cam.position, p, out var wall, ceilingMask, QueryTriggerInteraction.Ignore))
-            p = wall.point - back * 0.5f;                                                          // don't spawn inside walls
-        p.y = HoverHeight(p);
+        Vector3 p = transform.position;
+        if (FloorOf(cam.position.y) >= 0)
+        {
+            Vector3 back = -cam.forward; back.y = 0; back.Normalize();
+            p = cam.position + Quaternion.Euler(0, Random.Range(-50f, 50f), 0) * back * reappearDistance;
+            if (Physics.Linecast(cam.position, p, out var wall, ceilingMask, QueryTriggerInteraction.Ignore))
+                p = wall.point - back * 0.5f;                                                      // don't spawn inside walls
+            p.y = HoverHeight(p);
+        }
         transform.position = p; velocity = Vector3.zero;
         for (float t = 0; t < 0.5f; t += Time.deltaTime)
         {
@@ -154,7 +178,7 @@ public class FloatingEyes : MonoBehaviour
             yield return null;
         }
         transform.localScale = baseScale;
-        onReappeared?.Invoke();
+        if (!relocating) onReappeared?.Invoke();
         vanishing = false;
     }
 

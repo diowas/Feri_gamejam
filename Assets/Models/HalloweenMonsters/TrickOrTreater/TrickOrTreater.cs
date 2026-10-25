@@ -29,17 +29,18 @@ public class TrickOrTreater : MonoBehaviour
 
     [Header("Patrol")]
     public Transform[] waypoints = new Transform[0];   // empty -> wanders to random points on the NavMesh
-    public float wanderRadius = 25f;
+    public float wanderRadius = 20f;
     public float patrolSpeed = 1.3f;
     public float waypointPause = 2.5f;
 
     [Header("Senses")]
-    public float viewDistance = 18f;
+    public float viewDistance = 15f;
     [Range(10, 360)] public float viewAngle = 110f;
     public float closeSenseDistance = 2.5f;          // it feels you this close, even behind it
     public float timeToNotice = 0.6f;                // at mid range; almost instant up close
     public float hearRadius = 11f;
     public float noisySpeed = 3.5f;                  // a player moving faster than this (m/s) can be heard
+    public float maxHeightDifference = 2f;           // player further above/below than this is on another floor: never seen, heard or chased
     public LayerMask sightBlockers = ~0;
 
     [Header("Chase")]
@@ -47,7 +48,7 @@ public class TrickOrTreater : MonoBehaviour
     public float spotFreezeTime = 0.9f;              // the pause after it sees you, head snapped sideways
     public float loseSightTime = 4f;
     public float searchTime = 7f;
-    public float killDistance = 2.0f;               // its arms are very long
+    public float killDistance = 1.3f;               // its arms are very long
 
     [Header("Animation")]
     public float walkAnimFps = 12f;
@@ -125,7 +126,11 @@ public class TrickOrTreater : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         if (!playerCamera) playerCamera = Camera.main;
-        if (!playerRoot && playerCamera) playerRoot = playerCamera.transform.root;
+        if (!playerRoot && playerCamera)
+        {
+            var body = playerCamera.GetComponentInParent<CharacterController>();
+            playerRoot = body ? body.transform : playerCamera.transform.root;
+        }
         mpb = new MaterialPropertyBlock();
         BuildRig();
         if (playerCamera) lastPlayerPos = playerCamera.transform.position;
@@ -182,7 +187,7 @@ public class TrickOrTreater : MonoBehaviour
             case State.Search:
                 Notice(sees, dist, dt);
                 if (state == State.Spotting) break;
-                if (playerVelocity.magnitude > noisySpeed && dist < hearRadius) Investigate(p);   // it hears you running
+                if (playerVelocity.magnitude > noisySpeed && dist < hearRadius && OnMyFloor(p)) Investigate(p);   // it hears you running
                 UpdateWander(dt);
                 break;
 
@@ -194,7 +199,7 @@ public class TrickOrTreater : MonoBehaviour
 
             case State.Chase:
                 agent.isStopped = false; agent.speed = chaseSpeed;
-                if (!sees && Time.time - lastSeenTime < 1.5f) lastKnown = p;     // it 'knows' for a moment around corners
+                if (!sees && Time.time - lastSeenTime < 1.5f && OnMyFloor(p)) lastKnown = p;     // it 'knows' for a moment around corners
                 repathTimer -= dt;
                 if (repathTimer <= 0f) { agent.SetDestination(Ground(lastKnown)); repathTimer = 0.2f; }
                 if (sees && FlatDistance(p) < killDistance) { StartCoroutine(KillRoutine()); break; }
@@ -250,7 +255,11 @@ public class TrickOrTreater : MonoBehaviour
     }
 
     // other monsters (or doors, noises...) can call these
-    public void Alert(Vector3 position) { if (state == State.Patrol || state == State.Search || state == State.Investigate) Investigate(position); }
+    public void Alert(Vector3 position)
+    {
+        if (!OnMyFloor(position)) return;
+        if (state == State.Patrol || state == State.Search || state == State.Investigate) Investigate(position);
+    }
     public void AlertAtPlayer() { if (playerCamera) Alert(playerCamera.transform.position); }
     // lets the CeilingWatcher's "Hunter" slot point at this monster: it comes to look instead of teleporting
     public void TeleportBehindPlayer() => AlertAtPlayer();
@@ -266,13 +275,28 @@ public class TrickOrTreater : MonoBehaviour
     {
         Vector3 eye = HeadCenter();
         Vector3 to = target - eye; dist = to.magnitude;
-        if (dist > viewDistance) return false;
+        if (dist > viewDistance || !OnMyFloor(target)) return false;
         Vector3 flat = new Vector3(to.x, 0f, to.z);
         if (dist > closeSenseDistance && Vector3.Angle(transform.forward, flat) > viewAngle * 0.5f) return false;
-        if (Physics.Linecast(eye, target, out var hit, sightBlockers, QueryTriggerInteraction.Ignore))
-            return hit.transform.IsChildOf(transform) || (playerRoot && hit.transform.IsChildOf(playerRoot));
-        return true;
+        // check both ways: floor/ceiling meshes are one-sided, a ray from below passes straight through them
+        return !SightBlocked(eye, target) && !SightBlocked(target, eye);
     }
+
+    static readonly RaycastHit[] sightHits = new RaycastHit[16];
+    bool SightBlocked(Vector3 from, Vector3 to)
+    {
+        Vector3 d = to - from; float len = d.magnitude;
+        int n = Physics.RaycastNonAlloc(from, d / Mathf.Max(len, 1e-4f), sightHits, len, sightBlockers, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
+        {
+            Transform t = sightHits[i].transform;
+            if (!t.IsChildOf(transform) && !(playerRoot && t.IsChildOf(playerRoot))) return true;
+        }
+        return false;
+    }
+
+    // p is at the player's eye height (or a noise at floor level); compared against its own feet + 1.6 m
+    bool OnMyFloor(Vector3 p) => Mathf.Abs(p.y - (transform.position.y + 1.6f)) < maxHeightDifference;
 
     void PickNextPatrolPoint()
     {
@@ -288,8 +312,12 @@ public class TrickOrTreater : MonoBehaviour
     Vector3 Ground(Vector3 p) => NavMesh.SamplePosition(p, out var hit, 3f, NavMesh.AllAreas) ? hit.position : p;
     Vector3 RandomPoint(Vector3 center, float radius)
     {
-        for (int i = 0; i < 12; i++)
-            if (NavMesh.SamplePosition(center + Random.insideUnitSphere * radius, out var hit, 2f, NavMesh.AllAreas)) return hit.position;
+        for (int i = 0; i < 12; i++)   // flat circle, so it wanders its own floor instead of up/down ramps and stairs
+        {
+            Vector2 r = Random.insideUnitCircle * radius;
+            if (NavMesh.SamplePosition(center + new Vector3(r.x, 0f, r.y), out var hit, 2f, NavMesh.AllAreas)
+                && Mathf.Abs(hit.position.y - center.y) < maxHeightDifference) return hit.position;
+        }
         return center;
     }
     float FlatDistance(Vector3 p) { Vector3 d = p - transform.position; d.y = 0f; return d.magnitude; }

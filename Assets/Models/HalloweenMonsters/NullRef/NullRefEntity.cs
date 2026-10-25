@@ -3,8 +3,11 @@
 // Every glitch is intentional: no walk animation (it slides), choppy 8 fps movement,
 // PS1 vertex wobble that gets worse the closer it is, and random vertex explosions.
 //
-// Setup: drop the NullRef model in the scene, add this script to the root.
-// Optional: add a NavMeshAgent (bake a NavMesh) so it paths around your faculty's walls.
+// It only hunts you after it has SEEN you (clear line, same floor). Lose it and it goes to where it last
+// saw you, then gives up.
+//
+// Setup: drop the NullRef model in the scene, add this script to the root and bake a NavMesh
+// (a NavMeshAgent is added for you) so it paths around walls and up the stairs.
 // Keep the entity on the "Ignore Raycast" layer (or give it no colliders) so it doesn't
 // block its own line-of-sight checks.
 using System.Collections.Generic;
@@ -13,6 +16,7 @@ using UnityEngine.AI;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
+[RequireComponent(typeof(NavMeshAgent))]
 public class NullRefEntity : MonoBehaviour
 {
     [Header("Target")]
@@ -25,7 +29,10 @@ public class NullRefEntity : MonoBehaviour
     public float teleportAfterUnseen = 7f;      // seconds unseen before it may jump behind you
     public float teleportBehindDistance = 5f;
     [Range(0, 1)] public float teleportChance = 0.4f;
-    public LayerMask occluders = ~0;            // walls/doors that block the player's view
+    public LayerMask occluders = ~0;            // walls/doors that block the player's view (and its own)
+
+    [Header("Senses")]
+    public float maxHeightDifference = 2.5f;    // player further above/below than this is on another floor: it can't see you
 
     [Header("Glitch look")]
     public float vertexSnap = 0.012f;           // PS1 vertex precision (object space, metres)
@@ -54,14 +61,33 @@ public class NullRefEntity : MonoBehaviour
     readonly HashSet<int> exploding = new HashSet<int>();
     Renderer[] renderers;
     NavMeshAgent agent;
+    Transform playerBody;
+    Vector3 lastKnown;
     float unseenTimer, stepTimer, nextExplosion, explosionEnd;
-    bool caught;
+    bool caught, hunting;
+    static readonly RaycastHit[] sightHits = new RaycastHit[16];
+
+    void Reset()
+    {
+        var a = GetComponent<NavMeshAgent>();
+        if (a) { a.radius = 0.4f; a.height = 2f; a.acceleration = 40f; a.angularSpeed = 0f; a.stoppingDistance = 0.2f; }
+    }
 
     void Awake()
     {
         if (!playerCamera) playerCamera = Camera.main;
+        if (playerCamera)
+        {
+            var body = playerCamera.GetComponentInParent<CharacterController>();
+            playerBody = body ? body.transform : playerCamera.transform;
+        }
         agent = GetComponent<NavMeshAgent>();
-        if (agent) { agent.updatePosition = false; agent.updateRotation = false; agent.speed = slideSpeed; }
+        if (!agent)    // older instances have none: without it, it slid through walls and hovered under the player
+        {
+            agent = gameObject.AddComponent<NavMeshAgent>();
+            agent.radius = 0.4f; agent.height = 2f; agent.acceleration = 40f; agent.angularSpeed = 0f; agent.stoppingDistance = 0.2f;
+        }
+        agent.updatePosition = false; agent.updateRotation = false; agent.speed = slideSpeed;
         renderers = GetComponentsInChildren<Renderer>();
         foreach (var mf in GetComponentsInChildren<MeshFilter>())
         {
@@ -81,32 +107,34 @@ public class NullRefEntity : MonoBehaviour
         Vector3 flatTo = playerPos - transform.position; flatTo.y = 0;
         float dist = flatTo.magnitude;
         bool watched = IsWatched();
+        bool seesPlayer = SeesPlayer(playerPos);
+        if (seesPlayer) { hunting = true; lastKnown = playerPos; }
 
-        if (dist < catchDistance) { Catch(); return; }
+        if (seesPlayer && dist < catchDistance) { Catch(); return; }
 
-        // ---- movement: only when nobody is looking
+        // ---- movement: only when nobody is looking, and only toward where it last saw you
         stepTimer += Time.deltaTime;
-        if (watched)
+        if (watched || !hunting || !agent.isOnNavMesh)
         {
             unseenTimer = 0;
-            if (agent) { agent.isStopped = true; agent.nextPosition = transform.position; }
+            if (agent.isOnNavMesh) { agent.isStopped = true; agent.nextPosition = transform.position; }
         }
         else
         {
             unseenTimer += Time.deltaTime;
-            if (agent) { agent.isStopped = false; agent.SetDestination(playerPos); }
+            agent.isStopped = false;
+            agent.SetDestination(NavMesh.SamplePosition(lastKnown, out var goal, 3f, NavMesh.AllAreas) ? goal.position : lastKnown);
+            // reached the spot where it lost you: it gives up and waits there
+            if (!seesPlayer && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.3f) hunting = false;
 
-            if (unseenTimer > teleportAfterUnseen && dist > teleportBehindDistance * 1.5f)
+            if (seesPlayer && unseenTimer > teleportAfterUnseen && dist > teleportBehindDistance * 1.5f)
             {
                 unseenTimer = 0;
                 if (Random.value < teleportChance) TeleportBehindPlayer();
             }
             else if (stepTimer >= 1f / stepRate)      // choppy, low-framerate slide
             {
-                float dt = stepTimer;
-                if (agent) transform.position = agent.nextPosition;
-                else transform.position = Vector3.MoveTowards(transform.position,
-                    transform.position + flatTo.normalized * dist, slideSpeed * dt);
+                transform.position = agent.nextPosition;
                 FacePlayer(flatTo);
             }
         }
@@ -141,8 +169,28 @@ public class NullRefEntity : MonoBehaviour
             Vector3 p = transform.position + Vector3.up * h;
             Vector3 vp = playerCamera.WorldToViewportPoint(p);
             if (vp.z <= 0 || vp.x < 0 || vp.x > 1 || vp.y < 0 || vp.y > 1) continue;
-            if (!Physics.Linecast(cam, p, out var hit, occluders, QueryTriggerInteraction.Ignore)
-                || hit.transform.IsChildOf(transform)) return true;
+            if (Clear(cam, p)) return true;
+        }
+        return false;
+    }
+
+    // it sees the player: same floor and nothing solid between its head and the player's eyes
+    bool SeesPlayer(Vector3 playerEye)
+    {
+        Vector3 eye = transform.position + Vector3.up * 1.6f;
+        return Mathf.Abs(playerEye.y - eye.y) < maxHeightDifference && Clear(eye, playerEye);
+    }
+
+    // check both ways: floor/ceiling meshes are one-sided, a ray from below passes straight through them
+    bool Clear(Vector3 a, Vector3 b) => !Blocked(a, b) && !Blocked(b, a);
+    bool Blocked(Vector3 from, Vector3 to)
+    {
+        Vector3 d = to - from; float len = d.magnitude;
+        int n = Physics.RaycastNonAlloc(from, d / Mathf.Max(len, 1e-4f), sightHits, len, occluders, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
+        {
+            Transform t = sightHits[i].transform;
+            if (!t.IsChildOf(transform) && !(playerBody && t.IsChildOf(playerBody))) return true;
         }
         return false;
     }
@@ -158,12 +206,13 @@ public class NullRefEntity : MonoBehaviour
     void TeleportBehindPlayer()
     {
         Vector3 back = -playerCamera.transform.forward; back.y = 0; back.Normalize();
-        Vector3 target = playerCamera.transform.position + back * teleportBehindDistance;
-        target.y = transform.position.y;
-        if (NavMesh.SamplePosition(target, out var hit, 3f, NavMesh.AllAreas)) target = hit.position;
-        else if (agent) return;                        // no valid floor behind the player, skip
-        transform.position = target;
-        if (agent) agent.Warp(target);
+        // the player's spot on the NavMesh; none (elevator, mid-jump) -> skip
+        if (!NavMesh.SamplePosition(playerCamera.transform.position, out var me, 2.5f, NavMesh.AllAreas)) return;
+        if (!NavMesh.SamplePosition(me.position + back * teleportBehindDistance, out var hit, 1f, NavMesh.AllAreas)) return;
+        if (Mathf.Abs(hit.position.y - me.position.y) > 1f) return;                 // different floor behind you
+        if (NavMesh.Raycast(me.position, hit.position, out _, NavMesh.AllAreas)) return;   // a wall between you and that spot
+        transform.position = hit.position;
+        agent.Warp(hit.position);
         StartExplosion();
     }
 
