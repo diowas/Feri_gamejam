@@ -32,7 +32,7 @@ public class JumpscareDirector : MonoBehaviour
 
     static int scares;                             // survives scene reloads
 
-    class Face { public GameObject go; public Renderer head; }
+    class Face { public GameObject go; public Renderer head; public AudioClip scream; }
     readonly List<Face> faces = new List<Face>();
     readonly Dictionary<FeriMap.PS1Lighting, float> baseExposure = new Dictionary<FeriMap.PS1Lighting, float>();
     MaterialPropertyBlock mpb;
@@ -42,8 +42,11 @@ public class JumpscareDirector : MonoBehaviour
     void Start()
     {
         mpb = new MaterialPropertyBlock();
-        AddFace(trickOrTreaterFace ? trickOrTreaterFace : FindAnyObjectByType<TrickOrTreater>()?.gameObject);
-        AddFace(nullRefFace ? nullRefFace : FindAnyObjectByType<NullRefEntity>()?.gameObject);
+        var tot = FindAnyObjectByType<TrickOrTreater>();
+        var nullRef = FindAnyObjectByType<NullRefEntity>();
+        // each face screams with its own monster's scream (screams, if you fill it in, overrides both)
+        AddFace(trickOrTreaterFace ? trickOrTreaterFace : tot ? tot.gameObject : null, tot ? tot.killScream : null);
+        AddFace(nullRefFace ? nullRefFace : nullRef ? nullRef.gameObject : null, nullRef ? nullRef.catchScream : null);
         foreach (var l in FindObjectsByType<FeriMap.PS1Lighting>(FindObjectsSortMode.None)) baseExposure[l] = l.exposure;
         darkness = Target();                       // already dark from earlier scares
         ApplyDarkness();
@@ -87,9 +90,10 @@ public class JumpscareDirector : MonoBehaviour
     }
 
     // a copy with only its meshes left: built under an inactive parent so none of the monster's scripts ever wake up
-    void AddFace(GameObject source)
+    void AddFace(GameObject source, AudioClip scream)
     {
         if (!source) return;
+        if (scream) scream.LoadAudioData();
         var holder = new GameObject("JumpscareFace");
         holder.transform.SetParent(transform, false);
         holder.SetActive(false);
@@ -100,7 +104,7 @@ public class JumpscareDirector : MonoBehaviour
         go.SetActive(false);
         holder.SetActive(true);
 
-        var face = new Face { go = go };
+        var face = new Face { go = go, scream = scream };
         foreach (var r in go.GetComponentsInChildren<Renderer>(true))
         {
             MakeSelfLit(r, mpb, faceBrightness);
@@ -129,11 +133,8 @@ public class JumpscareDirector : MonoBehaviour
         Vector3 anchor = face.head ? face.head.bounds.center : t.position + Vector3.up * 2.4f;
         Vector3 basePos = t.position + (cam.position + cam.forward * d - anchor);
 
-        if (screams != null && screams.Length > 0)
-        {
-            var clip = screams[Random.Range(0, screams.Length)];
-            if (clip) AudioSource.PlayClipAtPoint(clip, cam.position, screamVolume);
-        }
+        AudioClip clip = screams != null && screams.Length > 0 ? screams[Random.Range(0, screams.Length)] : face.scream;
+        if (clip) AudioSource.PlayClipAtPoint(clip, cam.position, screamVolume);
         float fov = camera.fieldOfView;
         for (float s = 0f; s < showTime; s += Time.deltaTime)
         {

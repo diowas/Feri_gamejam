@@ -527,6 +527,13 @@ MonoBehaviour:
   rotationStep: 22.5
   glitchAudio: {fileID: 0}
   proximityHum: {fileID: 0}
+  nearYouClip: {fileID: 8300000, guid: 06a0e06c0cd3c324ca9a9ce60194056e, type: 3}
+  glitchClips:
+  - {fileID: 8300000, guid: 40a24c06483061c4986175beb0a179ed, type: 3}
+  - {fileID: 8300000, guid: 88491c9da0609b94c8b2fa225eadb7e2, type: 3}
+  - {fileID: 8300000, guid: 0045ba1885567ad46b1f439a515f36cb, type: 3}
+  - {fileID: 8300000, guid: b90de1c5553fdfb42a87409ef14e19fc, type: 3}
+  hearDistance: 15
   headGlow: {fileID: 2118306954573043890}
   glowRenderer: {fileID: 1687513577630497164}
   glowColor: {r: 1, g: 0.45, b: 0.08, a: 1}

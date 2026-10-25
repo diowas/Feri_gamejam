@@ -47,6 +47,9 @@ public class NullRefEntity : MonoBehaviour
     [Header("Audio (optional)")]
     public AudioSource glitchAudio;             // short bitcrushed burst, played on explosions
     public AudioSource proximityHum;            // looping drone, volume rises as it gets closer
+    public AudioClip nearYouClip;               // looped on proximityHum (made for you if empty)
+    public AudioClip[] glitchClips;             // a random one plays on glitchAudio at every explosion
+    public float hearDistance = 15f;            // it's silent further away than this, or on another floor
 
     [Header("Pumpkin glow (optional)")]
     public Light headGlow;                      // orange point light placed inside the pumpkin
@@ -108,6 +111,32 @@ public class NullRefEntity : MonoBehaviour
             meshes.Add(new MeshState { mesh = m, baseVerts = m.vertices, work = new Vector3[m.vertexCount], center = m.bounds.center });
         }
         nextExplosion = FeriMap.FeriSlow.Time + Random.Range(1f, explosionInterval);
+
+        // clips without a source never play: make the sources if nobody set them up
+        if (!proximityHum && nearYouClip) proximityHum = MakeSource("NearYou", true, 0.6f);
+        if (proximityHum)
+        {
+            if (!proximityHum.clip) proximityHum.clip = nearYouClip;
+            proximityHum.loop = true; proximityHum.volume = 0f;
+            if (proximityHum.clip) proximityHum.Play();
+        }
+        if (!glitchAudio && glitchClips != null && glitchClips.Length > 0) { glitchAudio = MakeSource("Glitch", false, 1f); glitchAudio.volume = 0.6f; }
+        if (catchScream) catchScream.LoadAudioData();   // its import has preloading off: don't let the scream start late
+    }
+
+    void OnDisable() { if (proximityHum) proximityHum.Stop(); }   // e.g. FeriEnding switching it off
+    void OnEnable() { if (proximityHum && proximityHum.clip && !caught) proximityHum.Play(); }
+
+    AudioSource MakeSource(string n, bool loop, float spatial)
+    {
+        var go = new GameObject(n);
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = Vector3.up * 1.6f;
+        var a = go.AddComponent<AudioSource>();
+        a.playOnAwake = false; a.loop = loop;
+        a.spatialBlend = spatial; a.rolloffMode = AudioRolloffMode.Linear;
+        a.minDistance = 1.5f; a.maxDistance = hearDistance; a.dopplerLevel = 0f;
+        return a;
     }
 
     void Update()
@@ -153,11 +182,12 @@ public class NullRefEntity : MonoBehaviour
 
         // ---- glitch mesh
         if (FeriMap.FeriSlow.Time >= nextExplosion) StartExplosion();
-        float proximity = Mathf.InverseLerp(15f, catchDistance, dist);
+        float proximity = Mathf.InverseLerp(hearDistance, catchDistance, dist);
+        if (Mathf.Abs(playerPos.y - (transform.position.y + 1.6f)) > maxHeightDifference) proximity = 0f;   // another floor
         float jitter = watched ? watchedJitter * (0.3f + proximity * 2f) : 0f;
         UpdateMeshes(jitter, FeriMap.FeriSlow.Time < explosionEnd);
 
-        if (proximityHum) proximityHum.volume = proximity;
+        if (proximityHum) proximityHum.volume = Mathf.MoveTowards(proximityHum.volume, proximity, Time.deltaTime);
 
         // candle flicker; flares and dies on explosions, burns brighter the closer it gets
         float flicker = Mathf.PerlinNoise(FeriMap.FeriSlow.Time * 9f, 0.3f) * 0.6f + 0.4f;
@@ -234,7 +264,12 @@ public class NullRefEntity : MonoBehaviour
         for (int i = 0; i < count; i++) exploding.Add(Random.Range(0, total));
         explosionEnd = FeriMap.FeriSlow.Time + explosionLength;
         nextExplosion = FeriMap.FeriSlow.Time + explosionInterval * Random.Range(0.5f, 1.5f);
-        if (glitchAudio) { glitchAudio.pitch = Random.Range(0.7f, 1.4f); glitchAudio.Play(); }
+        if (glitchAudio)
+        {
+            if (glitchClips != null && glitchClips.Length > 0) glitchAudio.clip = glitchClips[Random.Range(0, glitchClips.Length)];
+            glitchAudio.pitch = Random.Range(0.7f, 1.4f);
+            if (glitchAudio.clip) glitchAudio.Play();
+        }
     }
 
     void UpdateMeshes(float jitter, bool explode)

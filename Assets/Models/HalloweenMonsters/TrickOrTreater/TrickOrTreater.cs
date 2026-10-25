@@ -97,6 +97,7 @@ public class TrickOrTreater : MonoBehaviour
               LUL = 10, LLL = 11, FL = 12, LUR = 13, LLR = 14, FR = 15;
 
     NavMeshAgent agent;
+    AudioSource stepLoop;
     State state = State.Patrol;
     readonly Transform[] joints = new Transform[16];
     readonly Vector3[] restLocal = new Vector3[16];
@@ -136,6 +137,29 @@ public class TrickOrTreater : MonoBehaviour
         if (playerCamera) lastPlayerPos = playerCamera.transform.position;
         sackLastPos = joints[SACK].position;
         agent.speed = patrolSpeed;
+        // clips without a source never play: make the sources if nobody set them up
+        if (!sfx) sfx = MakeSource("Sfx", false);
+        var steps = footstepClips != null && footstepClips.Length > 0 ? footstepClips[0] : null;
+        if (steps && steps.length > 1.5f)   // a whole recording of steps, not one: loop it while it walks
+        {
+            stepLoop = MakeSource("Footsteps", true);
+            stepLoop.clip = steps;
+        }
+        if (killScream) killScream.LoadAudioData();   // its import has preloading off: don't let the scream start late
+    }
+
+    void OnDisable() { if (stepLoop) stepLoop.Pause(); }   // e.g. FeriEnding switching it off
+
+    AudioSource MakeSource(string n, bool loop)
+    {
+        var go = new GameObject(n);
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = Vector3.up * 1f;
+        var a = go.AddComponent<AudioSource>();
+        a.playOnAwake = false; a.loop = loop;
+        a.spatialBlend = 1f; a.rolloffMode = AudioRolloffMode.Linear;
+        a.minDistance = 2f; a.maxDistance = hearRadius * 2f; a.dopplerLevel = 0f;
+        return a;
     }
 
     void Start() { PickNextPatrolPoint(); }
@@ -346,7 +370,7 @@ public class TrickOrTreater : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(-fwd);
         headRollTarget = 40f;
         if (sfx && killScream) sfx.PlayOneShot(killScream);
-        yield return new WaitForSeconds(1.7f);
+        yield return new WaitForSeconds(Mathf.Max(1.7f, killScream ? killScream.length : 0f));   // let the scream finish before the reload cuts it
         playerCamera.fieldOfView = startFov;
         if (onKilledPlayer.GetPersistentEventCount() > 0) onKilledPlayer.Invoke();
         else SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
@@ -370,6 +394,7 @@ public class TrickOrTreater : MonoBehaviour
         }
         headRoll = Mathf.Lerp(headRoll, headRollTarget, 1f - Mathf.Exp(-(state == State.Spotting ? 30f : 3f) * dt));
 
+        UpdateStepLoop(dt);
         animTimer += dt;
         if (animTimer >= 1f / (chasing ? chaseAnimFps : walkAnimFps)) { animTimer = 0f; Pose(chasing); }
     }
@@ -431,8 +456,21 @@ public class TrickOrTreater : MonoBehaviour
         return Quaternion.Euler(pitch, yaw, 0f);
     }
 
+    void UpdateStepLoop(float dt)
+    {
+        if (!stepLoop) return;
+        bool walking = gait > 0.3f && !killing;
+        float want = walking ? (state == State.Chase ? 1f : 0.6f) : 0f;
+        if (playerCamera && !OnMyFloor(playerCamera.transform.position)) want *= 0.25f;   // muffled through the floor
+        stepLoop.volume = Mathf.MoveTowards(stepLoop.volume, want, dt * 2f);
+        stepLoop.pitch = (state == State.Chase ? 1.2f : 0.9f) * FeriMap.FeriSlow.Scale;
+        if (stepLoop.volume > 0.01f && !stepLoop.isPlaying) stepLoop.Play();
+        else if (stepLoop.volume <= 0.01f && stepLoop.isPlaying) stepLoop.Pause();
+    }
+
     void Footstep()
     {
+        if (stepLoop) return;
         if (!sfx || footstepClips == null || footstepClips.Length == 0) return;
         var clip = footstepClips[Random.Range(0, footstepClips.Length)];
         if (clip) sfx.PlayOneShot(clip, state == State.Chase ? 1f : 0.6f);

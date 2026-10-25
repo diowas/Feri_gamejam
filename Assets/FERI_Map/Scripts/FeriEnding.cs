@@ -20,6 +20,9 @@ namespace FeriMap
         [Tooltip("Scene loaded after the end card. Empty = the first scene in Build Settings.")]
         public string nextScene = "";
         public float endHold = 7f;
+        [Tooltip("Starts the moment it's revealed. Empty = Resources/EndSound (Assets/Soundtracks/Resources/EndSound.mp3).")]
+        public AudioClip endSound;
+        [Range(0f, 1f)] public float endSoundVolume = 1f;
 
         FeriElevator elevator;
         Shader shader;
@@ -47,7 +50,24 @@ namespace FeriMap
             if (started || floor < 0 || floor >= elevator.floors.Count || elevator.floors[floor].label != "5") return;
             started = true;
             SpawnEntity(elevator.floors[floor].y);   // the doors are only starting to open
+            PlayEndSound();
             StartCoroutine(Ending());
+        }
+
+        void Awake()
+        {
+            if (!endSound) endSound = Resources.Load<AudioClip>("EndSound");
+            if (endSound) endSound.LoadAudioData();   // ready to start on the very frame the doors open
+        }
+
+        // not on the entity: a 2D source that keeps playing through the fade and the end card
+        void PlayEndSound()
+        {
+            if (!endSound) return;
+            var a = gameObject.AddComponent<AudioSource>();
+            a.clip = endSound; a.volume = endSoundVolume;
+            a.spatialBlend = 0f; a.playOnAwake = false; a.loop = false;
+            a.Play();
         }
 
         void SpawnEntity(float floorY)
