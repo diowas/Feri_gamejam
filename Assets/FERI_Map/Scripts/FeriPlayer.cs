@@ -13,6 +13,8 @@ namespace FeriMap
         public float mouseSensitivity = 2f;
         public float gravity = 20f;
         public float interactDistance = 2.4f;
+        [Tooltip("Fall below this height (off the map) and you die: the scene reloads, like being caught.")]
+        public float fallDeathY = -30f;
         public float standHeight = 1.75f;
         public float crouchHeight = 1.1f;
         public float eyeOffset = 0.12f;
@@ -89,6 +91,11 @@ namespace FeriMap
 
         void Update()
         {
+            if (transform.position.y < fallDeathY)
+            {
+                UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+                return;
+            }
             if (FeriInput.Escape())
             {
                 Cursor.lockState = CursorLockMode.None;
