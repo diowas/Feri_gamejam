@@ -1,5 +1,5 @@
-// Once the lights go out (FeriBlackout), every 20-50 s a random door swings open onto a pitch black room, hangs there a
-// moment and slams shut (only the slam makes a sound). The map's doors are only flat panels baked into the wall
+// The doors stand open onto pitch black rooms. Once the lights go out (FeriBlackout), every 12-30 s a random one slams
+// shut, stays shut about a minute and then slowly creaks open again (only the slam makes a sound). The map's doors are only flat panels baked into the wall
 // geometry, so each one gets a
 // door leaf on a hinge laid over it, with a black "doorway" behind it that shows when it swings open.
 // The leaves have no collider: they can't push the player or block the monsters. The slam is synthesised.
@@ -16,7 +16,9 @@ namespace FeriMap
         [Tooltip("Only start once the lights have gone out.")]
         public bool onlyAfterBlackout = true;
         [Tooltip("Seconds between two doors, picked at random in this range.")]
-        public Vector2 interval = new Vector2(20f, 50f);
+        public Vector2 interval = new Vector2(12f, 30f);
+        [Tooltip("How long a slammed door stays shut before it creaks open again (seconds, random in this range).")]
+        public Vector2 closedTime = new Vector2(50f, 70f);
         [Tooltip("Prefer doors this close to the player, so you actually notice them (metres).")]
         public float nearRadius = 25f;
         [Range(0f, 1f)] public float volume = 0.8f;
@@ -48,7 +50,7 @@ namespace FeriMap
             new DoorSpot(7.15f, 19.05f, 19.8f, 0.04f, 2.1f, 1.0f, true),
         };
 
-        class Door { public Transform hinge; public float sign; public AudioSource audio; public bool busy; }
+        class Door { public Transform hinge; public float sign, open, w, h; public AudioSource audio; public bool busy; }
 
         readonly List<Door> doors = new List<Door>();
         FeriBlackout blackout;
@@ -95,25 +97,12 @@ namespace FeriMap
         IEnumerator Haunt(Door d)
         {
             d.busy = true;
-            float open = Random.Range(55f, 95f) * d.sign;
-            bool fast = Random.value < 0.25f;   // sometimes it's yanked open
-            float t = 0f, dur = fast ? 0.35f : Random.Range(1.2f, 2.4f);
-            while (t < dur)
-            {
-                t += Time.deltaTime;
-                float k = Mathf.SmoothStep(0f, 1f, t / dur);
-                float jitter = fast ? 0f : Mathf.Sin(t * 23f) * 1.5f * (1f - k);   // stutters on the hinge
-                d.hinge.localRotation = Quaternion.Euler(0f, open * k + jitter * d.sign, 0f);
-                yield return null;
-            }
-            yield return new WaitForSeconds(Random.Range(1f, 3.5f));
-
-            t = 0f; dur = Random.Range(0.18f, 0.32f);
-            while (t < dur)
+            float t = 0f, dur = Random.Range(0.18f, 0.32f);
+            while (t < dur)   // slams: accelerates into the frame
             {
                 t += Time.deltaTime;
                 float k = t / dur;
-                d.hinge.localRotation = Quaternion.Euler(0f, open * (1f - k * k), 0f);   // accelerates into the frame
+                d.hinge.localRotation = Quaternion.Euler(0f, d.open * (1f - k * k), 0f);
                 yield return null;
             }
             d.hinge.localRotation = Quaternion.identity;
@@ -126,6 +115,21 @@ namespace FeriMap
                 yield return null;
             }
             d.hinge.localRotation = Quaternion.identity;
+
+            yield return new WaitForSeconds(Random.Range(closedTime.x, closedTime.y));
+
+            // then it slowly creaks back open, stuttering on the hinge
+            d.open = ClearAngle(d, Random.Range(55f, 95f));
+            t = 0f; dur = Random.Range(2.5f, 4.5f);
+            while (t < dur)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.SmoothStep(0f, 1f, t / dur);
+                float jitter = Mathf.Sin(t * 23f) * 1.5f * (1f - k);
+                d.hinge.localRotation = Quaternion.Euler(0f, d.open * k + jitter * d.sign, 0f);
+                yield return null;
+            }
+            d.hinge.localRotation = Quaternion.Euler(0f, d.open, 0f);
             d.busy = false;
         }
 
@@ -152,6 +156,9 @@ namespace FeriMap
             d.hinge.SetParent(frame, false);
             d.hinge.localPosition = new Vector3(-d.sign * w * 0.5f, 0f, -0.055f);
             Box(d.hinge, new Vector3(d.sign * w * 0.5f, 0f, 0f), new Vector3(w - 0.02f, h - 0.01f, 0.04f), leafMat).name = "Leaf";
+            d.w = w; d.h = h;
+            d.open = ClearAngle(d, Random.Range(55f, 95f));   // doors stand open until one slams
+            d.hinge.localRotation = Quaternion.Euler(0f, d.open, 0f);
 
             d.audio = frame.gameObject.AddComponent<AudioSource>();
             d.audio.spatialBlend = 1f;
@@ -160,6 +167,29 @@ namespace FeriMap
             d.audio.maxDistance = 30f;
             d.audio.playOnAwake = false;
             return d;
+        }
+
+        // The widest angle up to `want` (degrees, signed for this door) at which the leaf hits nothing: no swinging
+        // through walls, desks or the frame. The swept boxes skip the bit by the hinge, where it touches the wall.
+        float ClearAngle(Door d, float want)
+        {
+            Transform frame = d.hinge.parent;
+            Vector3 hingePos = d.hinge.position;
+            for (float a = want; a > 10f; a -= 5f)
+            {
+                bool hit = false;
+                for (float step = Mathf.Min(a, 15f); step <= a + 0.01f && !hit; step = Mathf.Min(step + 15f, a + 0.02f))
+                {
+                    Quaternion r = frame.rotation * Quaternion.Euler(0f, step * d.sign, 0f);
+                    Vector3 along = r * Vector3.right * d.sign;
+                    Vector3 centre = hingePos + along * (d.w * 0.5f + 0.06f);
+                    var half = new Vector3(Mathf.Max(0.05f, d.w * 0.5f - 0.12f), d.h * 0.5f - 0.12f, 0.03f);
+                    hit = Physics.CheckBox(centre, half, r, ~0, QueryTriggerInteraction.Ignore);
+                    if (step >= a) break;
+                }
+                if (!hit) return a * d.sign;
+            }
+            return 12f * d.sign;   // no room at all: barely ajar
         }
 
         // +1 or -1: which side of the wall has floor (NavMesh) in front of the door
@@ -177,7 +207,7 @@ namespace FeriMap
         static Transform Box(Transform parent, Vector3 at, Vector3 size, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Destroy(go.GetComponent<Collider>());
+            DestroyImmediate(go.GetComponent<Collider>());   // now, so ClearAngle doesn't hit our own boxes
             var t = go.transform;
             t.SetParent(parent, false);
             t.localPosition = at;

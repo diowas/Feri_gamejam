@@ -86,7 +86,7 @@ namespace FeriMap
                 Apply(Mathf.PerlinNoise(Time.time * 20f, 1.3f) < Mathf.Lerp(0.2f, 1f, sinceFix / 0.7f) ? 0f : 1f);
                 return;
             }
-            if (dead) return;
+            if (dead) { DeadFlicker(); return; }
             float t = Time.time - outAt;
             if (t < 0f) { if (sinceFix < 1f) Apply(0f); return; }
             if (!captured) Capture();
@@ -107,6 +107,27 @@ namespace FeriMap
                 k = n < Mathf.Lerp(0.25f, 0.85f, t / flickerTime) ? 1f : t / flickerTime * 0.5f;
             }
             Apply(k);
+        }
+
+        // while the power is dead the lights now and then (every 4-7 s) stutter dimly, for half a second or so
+        float nextFlick = -1f, flickAt = -1f, flickLength;
+        void DeadFlicker()
+        {
+            if (nextFlick < 0f) nextFlick = Time.time + Random.Range(4f, 7f);
+            if (Time.time >= nextFlick)
+            {
+                flickAt = Time.time;
+                flickLength = Random.Range(0.3f, 0.7f);
+                nextFlick = Time.time + Random.Range(4f, 7f);
+            }
+            float ft = Time.time - flickAt;
+            if (flickAt >= 0f && ft < flickLength)
+            {
+                if (!captured) Capture();
+                float n = Mathf.PerlinNoise(Time.time * 25f, 7.1f);
+                Apply(n > 0.45f ? Mathf.Lerp(0.93f, 0.8f, (n - 0.45f) / 0.55f) : 1f);   // 1 = black, 0.8 = a dim glow
+            }
+            else if (flickAt >= 0f) { flickAt = -1f; Apply(1f); }
         }
 
         void Capture()

@@ -131,13 +131,6 @@ namespace FeriMap.EditorTools
             EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
         }
 
-        [MenuItem("FERI/Ponovno zgradi stopnice (StairsDown)", false, 22)]
-        public static void RebuildStairsMenu() { RebuildGroup("StairsDown"); }
-
-        // the escape (FeriEscape): the shaft goes on up into a little penthouse on the new roof
-        [MenuItem("FERI/Ponovno zgradi jasek in streho (pobeg)", false, 23)]
-        public static void RebuildRoofMenu() { RebuildGroup("ElevatorShaft"); RebuildGroup("Roof"); }
-
         // Rebuilds one group of the layout (its Geometry and Colliders children) in the open scene, leaving the rest of
         // the map and FERI_Meshes.asset alone: the new meshes go to Generated/FERI_<group>.asset. Save the scene after.
         public static void RebuildGroup(string group)
