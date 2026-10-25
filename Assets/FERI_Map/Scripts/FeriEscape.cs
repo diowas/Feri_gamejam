@@ -115,15 +115,40 @@ namespace FeriMap
         public static void ResetForNewGame() { ResetProgress(); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { ResetProgress(); }
+        static void ResetStatics()
+        {
+            ResetProgress();
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        }
 
-        /// <summary>What the mission box (top left) should say, or false when the escape hasn't started / is over.</summary>
+        // Every (re)load is a fresh run: dying reloads the scene, and the whole game starts over from the spawn, lights on,
+        // no escape, nothing found.
+        static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, UnityEngine.SceneManagement.LoadSceneMode m)
+        {
+            if (m != UnityEngine.SceneManagement.LoadSceneMode.Single) return;
+            ResetProgress();
+            FeriBlackout.ResetState();
+        }
+
+        /// <summary>What the mission box (top left) should say, or false when the escape hasn't started / is over.
+        /// In order: find the clue (the note in P02), go down to the garage, (the elevator dies: PowerObjective),
+        /// then get to the fifth floor.</summary>
         public static bool Objective(out string line, out string sub)
         {
             line = sub = null;
             if (!started || escaped) return false;
+            if (!noteRead) { line = "Find a clue in a classroom"; sub = "Search the classrooms"; return true; }
+            if (powerCut && !powerFixed)
+            {
+                // the elevator is dead: PowerObjective is the main one, this just keeps the key in mind
+                if (hasKey) return false;
+                line = "Find the elevator key"; sub = "It's on the lowest floor of the parking garage";
+                return true;
+            }
+            if (!powerCut && !hasKey) { line = "Go to the parking garage"; sub = "Take the elevator to the lowest floor"; return true; }
             line = "Get to the fifth floor";
-            if (!hasKey) sub = noteRead ? "The key is in the parking garage, lowest floor" : "The elevator needs a key";
+            if (!hasKey) sub = "The key is in the parking garage, lowest floor";
             else if (!keyInserted) sub = "Put the key in the elevator panel";
             else sub = "Press 5 in the elevator";
             return true;
@@ -351,16 +376,15 @@ namespace FeriMap
             }
             if (reading)
             {
-                // the note, held up in front of you
-                float w = Screen.height * 0.8f, h = Screen.height * 0.55f;
-                var paper = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
-                GUI.color = new Color(0f, 0f, 0f, 0.6f);
-                GUI.DrawTexture(new Rect(paper.x + u * 3f, paper.y + u * 3f, w, h), Texture2D.whiteTexture);
-                GUI.color = new Color(0.92f, 0.9f, 0.82f);
-                GUI.DrawTexture(paper, Texture2D.whiteTexture);
-                noteStyle.fontSize = Mathf.RoundToInt(u * 16f);
-                GUI.color = new Color(0.1f, 0.1f, 0.16f);
-                GUI.Label(new Rect(paper.x + w * 0.1f, paper.y, w * 0.8f, h), "The elevator key is in the parking garage, lowest floor.", noteStyle);
+                // the note, read like the Prologue's intro: warm grey LiberationSans on black, typed out letter by letter
+                const string noteText = "The elevator key is in the parking garage, lowest floor.";
+                GUI.color = new Color(0f, 0f, 0f, 0.85f);
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+                int shown = Mathf.Clamp(Mathf.FloorToInt((Time.time - readingSince) / 0.05f), 0, noteText.Length);
+                noteStyle.fontSize = Mathf.RoundToInt(u * 12f);
+                var r = new Rect(Screen.width * 0.2f, 0f, Screen.width * 0.6f, Screen.height);
+                GUI.color = new Color(0.62f, 0.58f, 0.47f);
+                GUI.Label(r, noteText.Substring(0, shown), noteStyle);
             }
             GUI.color = Color.white;
         }

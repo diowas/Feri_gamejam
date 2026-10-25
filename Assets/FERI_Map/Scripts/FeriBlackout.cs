@@ -109,16 +109,16 @@ namespace FeriMap
             Apply(k);
         }
 
-        // while the power is dead the lights now and then (every 4-7 s) stutter dimly, for half a second or so
+        // while the power is dead the lights now and then (every 2-7 s, at random) stutter dimly, for half a second or so
         float nextFlick = -1f, flickAt = -1f, flickLength;
         void DeadFlicker()
         {
-            if (nextFlick < 0f) nextFlick = Time.time + Random.Range(4f, 7f);
+            if (nextFlick < 0f) nextFlick = Time.time + Random.Range(2f, 7f);
             if (Time.time >= nextFlick)
             {
                 flickAt = Time.time;
                 flickLength = Random.Range(0.3f, 0.7f);
-                nextFlick = Time.time + Random.Range(4f, 7f);
+                nextFlick = Time.time + Random.Range(2f, 7f);
             }
             float ft = Time.time - flickAt;
             if (flickAt >= 0f && ft < flickLength)
@@ -199,10 +199,10 @@ namespace FeriMap
             if (fade > 0f)
                 y += MissionBox(y, u, dead ? "Fix the lights in Alfa" : "The lights are back on", dead ? "Pull the lever on the desk" : null,
                     dead ? new Color(0.62f, 0.58f, 0.47f) : new Color(0.45f, 0.8f, 0.5f), fade) + u * 4f;   // the Prologue's warm grey
-            if (FeriEscape.Objective(out string line, out string sub))
-                y += MissionBox(y, u, line, sub, new Color(0.75f, 0.35f, 0.3f), 1f) + u * 4f;
-            if (FeriEscape.PowerObjective(out line, out sub))
-                MissionBox(y, u, line, sub, new Color(0.85f, 0.6f, 0.2f), 1f);
+            if (FeriEscape.PowerObjective(out string line, out string sub))   // the elevator is dead: that comes first
+                y += MissionBox(y, u, line, sub, new Color(0.85f, 0.6f, 0.2f), 1f) + u * 4f;
+            if (FeriEscape.Objective(out line, out sub))
+                MissionBox(y, u, line, sub, new Color(0.75f, 0.35f, 0.3f), 1f);
         }
 
         float MissionBox(float y, float u, string line, string sub, Color accent, float fade)
