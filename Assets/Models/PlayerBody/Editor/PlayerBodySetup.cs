@@ -61,7 +61,7 @@ public static class PlayerBodySetup
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             string root = FindRoot();
-            if (root != null && !File.Exists(root + "/Resources/PlayerArms.prefab")) Build();
+            if (root != null && (!File.Exists(root + "/Resources/PlayerArms.prefab") || !File.Exists(root + "/Resources/AbilityFlashlight.prefab"))) Build();
         };
     }
 
@@ -81,6 +81,12 @@ public static class PlayerBodySetup
 
         BuildArms(root, armsFbx, MakeMat(root + "/Materials/Arms_PS1.mat", ps1, armsTex), MakeMat(root + "/Materials/Arms_Lit.mat", lit, armsTex));
         BuildLegs(root, bodyFbx, MakeMat(root + "/Materials/Body_PS1.mat", ps1, bodyTex), MakeMat(root + "/Materials/Body_Lit.mat", lit, bodyTex));
+
+        var flashFbx = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/flashlight.fbx");
+        var flashTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Materials/Flashlight/texture.png");
+        if (flashFbx != null)
+            BuildFlashlight(root, flashFbx, MakeMat(root + "/Materials/Flashlight_PS1.mat", ps1, flashTex), MakeMat(root + "/Materials/Flashlight_Lit.mat", lit, flashTex));
+        else Debug.LogWarning("Player Body: Assets/Models/flashlight.fbx not found, the FLASH ability has no flashlight to spawn.");
         AssetDatabase.SaveAssets();
         Debug.Log("Player Body: built PlayerArms + PlayerLegs in " + root + "/Resources");
         return true;
@@ -165,6 +171,47 @@ public static class PlayerBodySetup
         var part = go.AddComponent<FeriPlayerBodyPart>();
         part.ps1Material = ps1; part.litMaterial = lit;
         Save(go, root + "/Resources/PlayerLegs.prefab");
+    }
+
+    // ------------------------------------------------------------------ FLASH ability flashlight
+    // 1 m long, centred on the root, lens (the wider end) pointing +Z. FeriAbilities scales it to the hand.
+    static void BuildFlashlight(string root, GameObject fbx, Material ps1, Material lit)
+    {
+        var go = new GameObject("AbilityFlashlight");
+        var model = (GameObject)PrefabUtility.InstantiatePrefab(fbx);
+        model.transform.SetParent(go.transform, false);
+        Transform t = model.transform;
+
+        var pts = new System.Collections.Generic.List<Vector3>();
+        foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
+            if (mf.sharedMesh != null) foreach (var v in mf.sharedMesh.vertices) pts.Add(mf.transform.TransformPoint(v));
+        if (pts.Count > 0)
+        {
+            var b = new Bounds(pts[0], Vector3.zero);
+            foreach (var v in pts) b.Encapsulate(v);
+            Vector3 ext = b.size;
+            Vector3 axis = ext.x >= ext.y && ext.x >= ext.z ? Vector3.right : ext.y >= ext.z ? Vector3.up : Vector3.forward;
+            float len = Vector3.Dot(ext, axis);
+            // the wider end is the head
+            float rA = 0f, rB = 0f; int nA = 0, nB = 0;
+            foreach (var v in pts)
+            {
+                Vector3 d = v - b.center; float a = Vector3.Dot(d, axis) / Mathf.Max(len, 1e-5f);
+                float r = Vector3.ProjectOnPlane(d, axis).magnitude;
+                if (a > 0.3f) { rA += r; nA++; } else if (a < -0.3f) { rB += r; nB++; }
+            }
+            if (nA > 0 && nB > 0 && rB / nB > rA / nA) axis = -axis;
+            Quaternion q = Quaternion.FromToRotation(axis, Vector3.forward);
+            float s = 1f / Mathf.Max(len, 1e-5f);
+            t.localScale *= s;
+            t.localRotation = q * t.localRotation;
+            t.localPosition = q * (t.localPosition - b.center) * s;
+        }
+
+        SetupRenderers(model, lit);
+        var part = go.AddComponent<FeriPlayerBodyPart>();
+        part.ps1Material = ps1; part.litMaterial = lit;
+        Save(go, root + "/Resources/AbilityFlashlight.prefab");
     }
 
     // ------------------------------------------------------------------ helpers

@@ -221,6 +221,16 @@ namespace FeriMap
             return -1;
         }
 
+        FeriAbilities abilities;
+
+        string Label(int i)
+        {
+            string t = (switchNames != null && i < switchNames.Length ? switchNames[i] + "  " : "") + "[" + (i + 1) + "]";
+            if (abilities == null) abilities = GetComponent<FeriAbilities>();
+            float left = abilities != null ? abilities.Remaining(i) : 0f;
+            return left > 0f ? t + "\n" + Mathf.CeilToInt(left) + "s" : t;
+        }
+
         static void Box(Rect r, Color c)
         {
             GUI.color = c;
@@ -265,7 +275,7 @@ namespace FeriMap
                 float ky = Mathf.Lerp(r.yMax - kh, r.y, knobT[i]);   // knob slides up when on
                 Box(new Rect(r.x - r.width * 0.12f, ky, r.width * 1.24f, kh), new Color(0.85f, 0.85f, 0.8f));
                 GUI.color = new Color(0.65f, 1f, 0.7f, 0.8f);
-                GUI.Label(new Rect(r.center.x - r.width * 2.2f, r.yMax + b, r.width * 4.4f, panel.height * 0.1f), switchNames != null && i < switchNames.Length ? switchNames[i] + "  [" + (i + 1) + "]" : (i + 1).ToString(), labelStyle);
+                GUI.Label(new Rect(r.center.x - r.width * 2.2f, r.yMax + b, r.width * 4.4f, panel.height * 0.1f), Label(i), labelStyle);
             }
 
             // cursor
