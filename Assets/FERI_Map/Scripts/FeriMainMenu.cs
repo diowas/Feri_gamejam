@@ -1,5 +1,6 @@
 // The main menu: shown over the first scene (the Prologue) when the game starts, and again after the ending
 // (FeriEnding loads the first scene). Everything behind it is frozen (time and sound) until you press Play.
+// Escape opens it at any time as a pause menu (CONTINUE instead of PLAY), and Escape again closes it.
 // Builds itself: nothing to put in a scene. Drawn with IMGUI in the Prologue's font and colours.
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -15,7 +16,9 @@ namespace FeriMap
         public static bool AfterEnding;
 
         static FeriMainMenu open;
-        bool again;
+        bool again, paused;
+        int openedFrame;
+        float timeScaleBefore = 1f;
         float shownAt;
         Font font;
         GUIStyle titleStyle, subStyle, buttonStyle;
@@ -28,6 +31,30 @@ namespace FeriMap
             open = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void AddEscapeKey()
+        {
+            var watcher = new GameObject("FeriMenuKey");
+            watcher.hideFlags = HideFlags.HideInHierarchy;
+            DontDestroyOnLoad(watcher);
+            watcher.AddComponent<EscapeKey>();
+        }
+
+        // Escape: opens the menu as a pause menu, or closes it again
+        class EscapeKey : MonoBehaviour
+        {
+            void Update()
+            {
+                if (!FeriInput.Escape()) return;
+                if (open == null)
+                {
+                    var menu = new GameObject("FeriMainMenu").AddComponent<FeriMainMenu>();
+                    menu.paused = true;
+                }
+                else if (open.openedFrame != Time.frameCount) open.Play();
+            }
         }
 
         // the scene you start in: in the editor the opened scene is already loaded when Play starts, so sceneLoaded
@@ -48,6 +75,8 @@ namespace FeriMap
         {
             open = this;
             shownAt = Time.unscaledTime;
+            openedFrame = Time.frameCount;
+            timeScaleBefore = Time.timeScale > 0f ? Time.timeScale : 1f;
             Time.timeScale = 0f;
             AudioListener.pause = true;
             font = Resources.Load<Font>("FeriFont");
@@ -67,7 +96,7 @@ namespace FeriMap
 
         void Play()
         {
-            Time.timeScale = 1f;
+            Time.timeScale = timeScaleBefore;
             AudioListener.pause = false;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -99,7 +128,7 @@ namespace FeriMap
             buttonStyle.fontSize = Mathf.RoundToInt(u * 12f);
 
             float t = Time.unscaledTime - shownAt;
-            float fadeIn = Mathf.Clamp01(t / 1.2f);
+            float fadeIn = Mathf.Clamp01(t / (paused ? 0.25f : 1.2f));
 
             // black, with the faintest flicker
             GUI.color = new Color(0f, 0f, 0f, 0.96f);
@@ -111,7 +140,7 @@ namespace FeriMap
             Shadowed(new Rect(0f, cy - u * 52f, Screen.width, u * 14f), subtitle, subStyle,
                 new Color(Warm.r, Warm.g, Warm.b, fadeIn * 0.7f), u);
 
-            if (Button(new Rect(cx - u * 60f, cy - u * 10f, u * 120f, u * 20f), "PLAY", fadeIn, u) || (fadeIn >= 1f && Enter()))
+            if (Button(new Rect(cx - u * 60f, cy - u * 10f, u * 120f, u * 20f), paused ? "CONTINUE" : "PLAY", fadeIn, u) || (fadeIn >= 1f && Enter()))
                 Play();
             if (Button(new Rect(cx - u * 60f, cy + u * 16f, u * 120f, u * 20f), "QUIT", fadeIn, u))
                 Quit();
