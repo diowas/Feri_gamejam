@@ -72,6 +72,7 @@ namespace FeriMap
             // the lights go out 30 s in (only where the map is lit by PS1Lighting, not e.g. the Prologue)
             if (FindAnyObjectByType<PS1Lighting>() != null && GetComponent<FeriBlackout>() == null) gameObject.AddComponent<FeriBlackout>();
             if (FindAnyObjectByType<PS1Lighting>() != null && GetComponent<FeriHauntedDoors>() == null) gameObject.AddComponent<FeriHauntedDoors>();
+            if (FindAnyObjectByType<PS1Lighting>() != null && GetComponent<FeriEscape>() == null) gameObject.AddComponent<FeriEscape>();
             if (flashlightOnlyFromAbility)
             {
                 player.flashlightKey = false;
@@ -462,7 +463,7 @@ namespace FeriMap
                 Color c = abilityColor[i];
                 if (left < 1.5f && Mathf.Repeat(Time.time * 6f, 1f) < 0.5f) c.a = 0.35f;   // about to run out: blinks
 
-                var r = new Rect(x, m, tile, tile);
+                var r = new Rect(x, m + FeriEscape.HudTopOffset, tile, tile);   // under the escape timer
                 Box(new Rect(r.x - u, r.y - u, r.width + u * 2f, r.height + u * 2f), new Color(0f, 0f, 0f, 0.8f));
                 Box(r, new Color(0.04f, 0.04f, 0.04f, 0.9f));
                 Box(new Rect(r.x, r.yMax - r.height * k, r.width, r.height * k), new Color(c.r, c.g, c.b, 0.18f));   // fill drains down

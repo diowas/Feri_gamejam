@@ -37,6 +37,10 @@ namespace FeriMap
         public AudioSource audioSource;
 
         public State state = State.Idle;
+        [Tooltip("Brez elektrike: gumbi ne delajo, vrata in kabina stojijo (FeriEscape).")]
+        public bool powered = true;
+        /// <summary>The cabin stopped at a floor (index into floors).</summary>
+        public event System.Action<int> Arrived;
         public float DoorOpenAmount { get { return doorT; } }
         public float DoorGoal { get { return doorGoal; } }
         public int currentFloor;
@@ -56,8 +60,33 @@ namespace FeriMap
         int shownFloor = -1;
         static readonly int StId = Shader.PropertyToID("_MainTex_ST");
 
+        bool started;
+
+        /// <summary>Adds a floor at runtime (e.g. the roof); returns its index.</summary>
+        public int AddFloor(Floor f)
+        {
+            floors.Add(f);
+            if (started)
+            {
+                landAClosed.Add(f.landingDoorA != null ? f.landingDoorA.localPosition : Vector3.zero);
+                landBClosed.Add(f.landingDoorB != null ? f.landingDoorB.localPosition : Vector3.zero);
+            }
+            return floors.Count - 1;
+        }
+
+        /// <summary>Power off: cabin light out, buttons dead, everything stops where it is.</summary>
+        public void SetPowered(bool on)
+        {
+            powered = on;
+            if (cabin != null)
+                foreach (var l in cabin.GetComponentsInChildren<PS1Light>(true)) l.enabled = on;
+            if (!on && humSource != null) humSource.Stop();
+            if (on && state == State.Moving && humSource != null) humSource.Play();
+        }
+
         void Start()
         {
+            started = true;
             cabDoorAClosed = cabinDoorA != null ? cabinDoorA.localPosition : Vector3.zero;
             cabDoorBClosed = cabinDoorB != null ? cabinDoorB.localPosition : Vector3.zero;
             foreach (var f in floors)
@@ -75,6 +104,7 @@ namespace FeriMap
 
         public void Press(FeriElevatorButton b)
         {
+            if (!powered) return;
             int f = b.floorIndex;
             if (f < 0 || f >= floors.Count || !floors[f].enabled)
             {
@@ -103,6 +133,7 @@ namespace FeriMap
 
         void Update()
         {
+            if (!powered) return;
             float dt = Time.deltaTime;
             switch (state)
             {
@@ -161,6 +192,7 @@ namespace FeriMap
                 if (humSource != null) humSource.Stop();
                 Play(ding, 0.8f);
                 UpdateDisplays(currentFloor);
+                Arrived?.Invoke(currentFloor);
             }
         }
 

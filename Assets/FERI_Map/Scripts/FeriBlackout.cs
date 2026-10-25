@@ -2,8 +2,9 @@
 // flashlight (FLASH) lights anything. PS1 materials go dark through the _PS1_Blackout shader global (it also kills the
 // lighting baked into vertex colours and the glowing lamps); normal Unity lights and the ambient light are switched off too.
 // While it's dark a mission (top left) sends you to the lever on the teacher's desk in Alfa (FeriPowerLever), which
-// brings the lights back for `fixedDuration` seconds, then they die again. When they die the player thinks out loud at
-// the bottom of the screen, typed out like the Prologue text. Dying in the dark (scene reload) keeps the lights off.
+// brings the lights back for good (even after dying). When they die the player thinks out loud at
+// the bottom of the screen (FeriThought). Dying in the dark (scene reload) keeps the lights off.
+// The mission box (top left) also shows the escape's objective (FeriEscape) underneath.
 // FeriAbilities adds this to the player.
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,8 +15,6 @@ namespace FeriMap
     {
         [Tooltip("Seconds after spawning before the lights go out.")]
         public float delay = 10f;   // 10 s for testing (was 30)
-        [Tooltip("How long the lights stay on after the lever in Alfa is pulled.")]
-        public float fixedDuration = 120f;
         [Tooltip("How long the lights flicker before they die.")]
         public float flickerTime = 1.6f;
         [Tooltip("Where the lever goes: on the teacher's desk in Alfa (world space, on the desk top).")]
@@ -36,15 +35,17 @@ namespace FeriMap
         public bool IsOut => dead;
 
         // survives the scene reload when you die, so the power stays out
-        static bool powerOut;
+        static bool powerOut, fixedForGood;
         float thoughtAt = -99f;   // when "I should go fix the lights" started typing
         const string Thought = "The lights... I should go fix them.";
-        const float TypeSpeed = 0.1f, ThoughtHold = 4f;
         static Font font;
+
+        /// <summary>Back to the start: lights on (the escape ran out of time).</summary>
+        public static void ResetState() { powerOut = fixedForGood = false; }
 
         void OnEnable()
         {
-            outAt = Time.time + delay;
+            outAt = fixedForGood ? float.MaxValue : Time.time + delay;
             dead = captured = false;
             Shader.SetGlobalFloat(IdBlackout, 0f);
         }
@@ -66,13 +67,14 @@ namespace FeriMap
         void OnDisable() { RestoreAll(); }
         void OnApplicationQuit() { RestoreAll(); }
 
-        /// <summary>The lever in Alfa: lights back on (with a stutter) for fixedDuration seconds.</summary>
+        /// <summary>The lever in Alfa: lights back on (with a stutter), and they stay on.</summary>
         public void FixLights()
         {
             if (!dead) return;
             dead = powerOut = false;
+            fixedForGood = true;
             fixedAt = Time.time;
-            outAt = Time.time + fixedDuration;
+            outAt = float.MaxValue;
         }
 
         void Update()
@@ -94,6 +96,7 @@ namespace FeriMap
             {
                 k = 1f; dead = powerOut = true;
                 thoughtAt = Time.time;
+                FeriThought.Say(Thought);
                 if (lever != null) lever.ResetLever();
                 Debug.Log("Blackout: the lights are out, mission shown top left", this);
             }
@@ -162,36 +165,31 @@ namespace FeriMap
             GUI.color = Color.white;
         }
 
-        // bottom centre, typed out a letter at a time like the Prologue's "I should go to sleep" line
-        void DrawThought()
-        {
-            float t = Time.time - thoughtAt;
-            float typed = Thought.Length * TypeSpeed;
-            if (t < 0f || t > typed + ThoughtHold + 1f) return;
-            int n = Mathf.Clamp(Mathf.FloorToInt(t / TypeSpeed), 0, Thought.Length);
-            float a = Mathf.Clamp01(typed + ThoughtHold + 1f - t);   // fades out
-            textStyle.fontSize = Mathf.RoundToInt(Screen.height / 28f);
-            var r = new Rect(0f, Screen.height - Screen.height * 0.2f, Screen.width, Screen.height * 0.1f);
-            Label(r, Thought.Substring(0, n), textStyle, new Color(0.65f, 0.65f, 0.65f, a), Screen.height / 360f);
-        }
+        void DrawThought() { FeriThought.Draw(textStyle); }
 
-        // top left, once the thought has been typed out
+        // top left: the lights (once the thought has been typed out), then the escape under it
         void DrawMission()
         {
-            float sinceFix = Time.time - fixedAt;
-            bool show = dead && Time.time - thoughtAt > Thought.Length * TypeSpeed;
-            float fade = show ? 1f : dead ? 0f : Mathf.Clamp01((4f - sinceFix) / 1f);   // "lights back on" stays up a few seconds
-            if (fade <= 0f) return;
-
             float u = Mathf.Max(2f, Screen.height / 360f);   // one PS1 pixel
+            float y = u * 10f;
+            float sinceFix = Time.time - fixedAt;
+            bool show = dead && Time.time - thoughtAt > Thought.Length * 0.1f;
+            float fade = show ? 1f : dead ? 0f : Mathf.Clamp01((4f - sinceFix) / 1f);   // "lights back on" stays up a few seconds
+            if (fade > 0f)
+                y += MissionBox(y, u, dead ? "Fix the lights in Alfa" : "The lights are back on", dead ? "Pull the lever on the desk" : null,
+                    dead ? new Color(0.62f, 0.58f, 0.47f) : new Color(0.45f, 0.8f, 0.5f), fade) + u * 4f;   // the Prologue's warm grey
+            if (FeriEscape.Objective(out string line, out string sub))
+                y += MissionBox(y, u, line, sub, new Color(0.75f, 0.35f, 0.3f), 1f) + u * 4f;
+            if (FeriEscape.PowerObjective(out line, out sub))
+                MissionBox(y, u, line, sub, new Color(0.85f, 0.6f, 0.2f), 1f);
+        }
+
+        float MissionBox(float y, float u, string line, string sub, Color accent, float fade)
+        {
             float m = u * 10f;
             titleStyle.fontSize = Mathf.RoundToInt(u * 8f);
-            string line = dead ? "Fix the lights in Alfa" : "The lights are back on";
-            string sub = dead ? "Pull the lever on the desk" : null;
-            Color accent = dead ? new Color(0.62f, 0.58f, 0.47f) : new Color(0.45f, 0.8f, 0.5f);   // the Prologue's warm grey
-
-            float w = u * 130f, h = sub != null ? u * 26f : u * 15f;
-            var box = new Rect(m, m, w, h);
+            float w = u * 150f, h = sub != null ? u * 26f : u * 15f;
+            var box = new Rect(m, y, w, h);
             Box(new Rect(box.x, box.y, u * 2f, box.height), new Color(accent.r, accent.g, accent.b, 0.9f * fade));   // accent bar
             Box(new Rect(box.x + u * 2f, box.y, box.width, box.height), new Color(0f, 0f, 0f, 0.55f * fade));
             Label(new Rect(box.x + u * 6f, box.y + u * 2f, w, u * 11f), line, titleStyle, new Color(accent.r, accent.g, accent.b, fade), u);
@@ -202,6 +200,7 @@ namespace FeriMap
                 Label(new Rect(box.x + u * 6f, box.y + u * 13f, w, u * 11f), sub, titleStyle, new Color(0.65f, 0.65f, 0.65f, fade), u);
                 titleStyle.fontSize = big;
             }
+            return h;
         }
 
         static void Label(Rect r, string s, GUIStyle st, Color c, float u)
@@ -219,6 +218,6 @@ namespace FeriMap
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetGlobal() { Shader.SetGlobalFloat(IdBlackout, 0f); powerOut = false; }
+        static void ResetGlobal() { Shader.SetGlobalFloat(IdBlackout, 0f); powerOut = fixedForGood = false; }
     }
 }

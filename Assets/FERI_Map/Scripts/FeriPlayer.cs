@@ -203,13 +203,16 @@ namespace FeriMap
                 if (promptStyle == null)
                 {
                     promptStyle = new GUIStyle(GUI.skin.label);
-                    promptStyle.alignment = TextAnchor.MiddleCenter;
+                    promptStyle.alignment = TextAnchor.UpperCenter;
+                    promptStyle.wordWrap = false;   // a long prompt was wrapped and clipped top and bottom
+                    promptStyle.clipping = TextClipping.Overflow;
                 }
                 promptStyle.fontSize = Mathf.RoundToInt(Screen.height / 36f);
                 GUI.color = new Color(0, 0, 0, 0.8f);
-                GUI.Label(new Rect(cx - 199, cy + s * 6 + 1, 400, 40), hover.Prompt, promptStyle);
+                float ph = promptStyle.fontSize * 2f;
+                GUI.Label(new Rect(1, cy + s * 6 + 1, Screen.width, ph), hover.Prompt, promptStyle);
                 GUI.color = new Color(1f, 0.9f, 0.7f, 1f);
-                GUI.Label(new Rect(cx - 200, cy + s * 6, 400, 40), hover.Prompt, promptStyle);
+                GUI.Label(new Rect(0, cy + s * 6, Screen.width, ph), hover.Prompt, promptStyle);
             }
             GUI.color = Color.white;
         }
