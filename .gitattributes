@@ -169,3 +169,5 @@ Packages/packages-lock.json linguist-generated
 
 # Exceptions for .asset files such as lightning pre-baking
 LightingData.asset     binary
+# TerrainData is saved as binary; line-ending conversion corrupts it
+*Terrain*.asset        binary -eol
