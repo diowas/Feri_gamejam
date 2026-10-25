@@ -46,8 +46,10 @@ public class NullRefEntity : MonoBehaviour
 
     [Header("Audio (optional)")]
     public AudioSource glitchAudio;             // short bitcrushed burst, played on explosions
-    public AudioSource proximityHum;            // looping drone, volume rises as it gets closer
-    public AudioClip nearYouClip;               // looped on proximityHum (made for you if empty)
+    public AudioSource proximityHum;            // plays nearYouClip once when it gets close (made for you if empty)
+    public AudioClip nearYouClip;               // the "I see you" line
+    public float nearYouDistance = 8f;          // closer than this, on your floor, with a clear line to you
+    public float nearYouCooldown = 30f;         // seconds of quiet after the line finishes before it can say it again
     public AudioClip[] glitchClips;             // a random one plays on glitchAudio at every explosion
     public float hearDistance = 15f;            // it's silent further away than this, or on another floor
 
@@ -75,7 +77,7 @@ public class NullRefEntity : MonoBehaviour
     NavMeshAgent agent;
     Transform playerBody;
     Vector3 lastKnown;
-    float unseenTimer, stepTimer, nextExplosion, explosionEnd;
+    float unseenTimer, stepTimer, nextExplosion, explosionEnd, nextNearYou;
     bool caught, hunting;
     static readonly RaycastHit[] sightHits = new RaycastHit[16];
 
@@ -113,19 +115,18 @@ public class NullRefEntity : MonoBehaviour
         nextExplosion = FeriMap.FeriSlow.Time + Random.Range(1f, explosionInterval);
 
         // clips without a source never play: make the sources if nobody set them up
-        if (!proximityHum && nearYouClip) proximityHum = MakeSource("NearYou", true, 0.6f);
+        if (!proximityHum && nearYouClip) proximityHum = MakeSource("NearYou", false, 0.6f);
         if (proximityHum)
         {
             if (!proximityHum.clip) proximityHum.clip = nearYouClip;
-            proximityHum.loop = true; proximityHum.volume = 0f;
-            if (proximityHum.clip) proximityHum.Play();
+            proximityHum.loop = false; proximityHum.volume = 1f;
+            if (proximityHum.clip) proximityHum.clip.LoadAudioData();
         }
         if (!glitchAudio && glitchClips != null && glitchClips.Length > 0) { glitchAudio = MakeSource("Glitch", false, 1f); glitchAudio.volume = 0.6f; }
         if (catchScream) catchScream.LoadAudioData();   // its import has preloading off: don't let the scream start late
     }
 
     void OnDisable() { if (proximityHum) proximityHum.Stop(); }   // e.g. FeriEnding switching it off
-    void OnEnable() { if (proximityHum && proximityHum.clip && !caught) proximityHum.Play(); }
 
     AudioSource MakeSource(string n, bool loop, float spatial)
     {
@@ -187,7 +188,13 @@ public class NullRefEntity : MonoBehaviour
         float jitter = watched ? watchedJitter * (0.3f + proximity * 2f) : 0f;
         UpdateMeshes(jitter, FeriMap.FeriSlow.Time < explosionEnd);
 
-        if (proximityHum) proximityHum.volume = Mathf.MoveTowards(proximityHum.volume, proximity, Time.deltaTime);
+        // "I see you": once when it gets close, then quiet for the cooldown (no more saying it every few seconds)
+        if (proximityHum && proximityHum.clip && !proximityHum.isPlaying && Time.time >= nextNearYou
+            && seesPlayer && dist < nearYouDistance)
+        {
+            proximityHum.Play();
+            nextNearYou = Time.time + proximityHum.clip.length + nearYouCooldown;
+        }
 
         // candle flicker; flares and dies on explosions, burns brighter the closer it gets
         float flicker = Mathf.PerlinNoise(FeriMap.FeriSlow.Time * 9f, 0.3f) * 0.6f + 0.4f;
