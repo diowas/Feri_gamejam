@@ -171,3 +171,4 @@ Packages/packages-lock.json linguist-generated
 LightingData.asset     binary
 # TerrainData is saved as binary; line-ending conversion corrupts it
 *Terrain*.asset        binary -eol
+NavMesh*.asset         binary -eol
