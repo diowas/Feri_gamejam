@@ -30,6 +30,7 @@ namespace FeriMap
         }
         public static bool Flashlight() { var k = Keyboard.current; return k != null && k.fKey.wasPressedThisFrame; }
         public static bool Watch() { var k = Keyboard.current; return k != null && k.tabKey.isPressed; }
+        public static bool Jump() { var k = Keyboard.current; return k != null && k.spaceKey.isPressed; }
         public static bool NumberKey(int n)
         {
             var k = Keyboard.current; if (k == null || n < 0 || n > 9) return false;
@@ -50,6 +51,7 @@ namespace FeriMap
         public static bool Interact() { return Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0); }
         public static bool Flashlight() { return Input.GetKeyDown(KeyCode.F); }
         public static bool Watch() { return Input.GetKey(KeyCode.Tab); }
+        public static bool Jump() { return Input.GetKey(KeyCode.Space); }
         public static bool NumberKey(int n) { return n >= 0 && n <= 9 && (Input.GetKeyDown(KeyCode.Alpha0 + n) || Input.GetKeyDown(KeyCode.Keypad0 + n)); }
         public static bool Escape() { return Input.GetKeyDown(KeyCode.Escape); }
         public static bool Click() { return Input.GetMouseButtonDown(0); }

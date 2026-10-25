@@ -40,6 +40,7 @@ namespace FeriMap
         [Range(0.2f, 0.9f)] public float panelSize = 0.6f;
         [Tooltip("State of the 5 toggle switches on the hand display.")]
         public bool[] switches = new bool[5];
+        public string[] switchNames = { "FLASH", "XRAY", "NOCLIP", "SLOW", "BHOP" };
         /// <summary>Raised when a switch on the hand display flips: (index 0-4, new state).</summary>
         public static event System.Action<int, bool> SwitchToggled;
 
@@ -253,7 +254,7 @@ namespace FeriMap
             if (watchW < 1f) { GUI.color = Color.white; return; }
 
             if (labelStyle == null) { labelStyle = new GUIStyle(GUI.skin.label); labelStyle.alignment = TextAnchor.MiddleCenter; labelStyle.fontStyle = FontStyle.Bold; }
-            labelStyle.fontSize = Mathf.RoundToInt(panel.height * 0.06f);
+            labelStyle.fontSize = Mathf.RoundToInt(panel.height * 0.045f);
             int hover = SwitchUnderCursor();
             for (int i = 0; i < knobs.Length; i++)
             {
@@ -264,7 +265,7 @@ namespace FeriMap
                 float ky = Mathf.Lerp(r.yMax - kh, r.y, knobT[i]);   // knob slides up when on
                 Box(new Rect(r.x - r.width * 0.12f, ky, r.width * 1.24f, kh), new Color(0.85f, 0.85f, 0.8f));
                 GUI.color = new Color(0.65f, 1f, 0.7f, 0.8f);
-                GUI.Label(new Rect(r.x - r.width, r.yMax + b, r.width * 3f, panel.height * 0.1f), (i + 1).ToString(), labelStyle);
+                GUI.Label(new Rect(r.center.x - r.width * 2.2f, r.yMax + b, r.width * 4.4f, panel.height * 0.1f), switchNames != null && i < switchNames.Length ? switchNames[i] + "  [" + (i + 1) + "]" : (i + 1).ToString(), labelStyle);
             }
 
             // cursor
@@ -462,8 +463,8 @@ namespace FeriMap
         {
             if (legs == null || left == null || right == null) return;
             float dt = Time.deltaTime;
-            Vector3 v = cc.velocity; v.y = 0;
-            float speed = cc.isGrounded ? v.magnitude : 0f;
+            Vector3 v = player.Velocity; v.y = 0;
+            float speed = player.Grounded ? v.magnitude : 0f;
             if (speed > 0.1f) moveDir = Vector3.Slerp(moveDir, v / v.magnitude, 1f - Mathf.Exp(-dt * 10f));
 
             amp = Mathf.Lerp(amp, stride * Mathf.Clamp(speed / Mathf.Max(player.walkSpeed, 0.01f), 0f, 1.3f), 1f - Mathf.Exp(-dt * 8f));

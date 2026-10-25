@@ -40,6 +40,7 @@ Material:
     - _AlphaClip: 1
     - _Cull: 0
     - _Cutoff: 0.5
+    - _DepthSqueeze: 0
     - _DstBlend: 0
     - _Emission: 0
     - _SrcBlend: 1

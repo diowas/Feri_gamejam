@@ -24,6 +24,25 @@ namespace FeriMap
         [Tooltip("Off while the hand display is up: the mouse drives its cursor instead of the camera.")]
         public bool lookEnabled = true;
         public PS1Flashlight flashlight;
+        [Tooltip("Off = the F key does nothing (the flashlight only comes from the FLASH ability).")]
+        public bool flashlightKey = true;
+
+        [Header("Abilities (set by FeriAbilities)")]
+        [Tooltip("Walk through walls and props, but stay on the floor.")]
+        public bool noclip;
+        [Tooltip("Hold Space to hop automatically; every hop adds speed.")]
+        public bool bhop;
+        public float jumpSpeed = 4.6f;
+        [Tooltip("Speed multiplier added per hop.")]
+        public float bhopGain = 0.12f;
+        public float bhopMaxBoost = 2f;
+        [Tooltip("Noclip: highest step the player snaps up onto (metres).")]
+        public float noclipStep = 0.45f;
+
+        public Vector3 Velocity { get; private set; }
+        public bool Grounded => cc.enabled ? cc.isGrounded : noclipGrounded;
+        bool noclipGrounded;
+        float hopBoost = 1f, groundTime;
 
         public static readonly System.Collections.Generic.List<FeriPlayer> All = new System.Collections.Generic.List<FeriPlayer>();
         void OnEnable() { if (!All.Contains(this)) All.Add(this); }
@@ -42,6 +61,7 @@ namespace FeriMap
             if (flashlight == null) flashlight = GetComponentInChildren<PS1Flashlight>();
             yaw = transform.eulerAngles.y;
             if (GetComponent<FeriPlayerBody>() == null) gameObject.AddComponent<FeriPlayerBody>();   // first-person arms + legs
+            if (GetComponent<FeriAbilities>() == null) gameObject.AddComponent<FeriAbilities>();       // the 5 hand-display switches
         }
 
         void Start()
@@ -104,21 +124,29 @@ namespace FeriMap
 
             Vector2 mv = active ? FeriInput.Move() : Vector2.zero;
             float speed = crouch ? crouchSpeed : (FeriInput.Run() ? runSpeed : walkSpeed);
-            Vector3 wish = (transform.right * mv.x + transform.forward * mv.y) * speed;
-            if (cc.isGrounded && vy < 0) vy = -2f;
+            bool grounded = Grounded;
+            groundTime = grounded ? groundTime + Time.deltaTime : 0f;
+            if (!bhop) hopBoost = 1f;
+            else if (active && grounded && FeriInput.Jump()) { vy = jumpSpeed; hopBoost = Mathf.Min(hopBoost + bhopGain, bhopMaxBoost); grounded = false; }
+            else if (grounded && groundTime > 0.2f) hopBoost = Mathf.MoveTowards(hopBoost, 1f, Time.deltaTime * 2f);   // lose the boost once you stop hopping
+            Vector3 wish = (transform.right * mv.x + transform.forward * mv.y) * speed * hopBoost;
+            if (grounded && vy < 0) vy = -2f;
             vy -= gravity * Time.deltaTime;
-            cc.Move((wish + Vector3.up * vy) * Time.deltaTime);
+            Vector3 before = transform.position;
+            if (noclip || !cc.enabled) NoclipMove(wish);
+            else cc.Move((wish + Vector3.up * vy) * Time.deltaTime);
+            Velocity = (transform.position - before) / Mathf.Max(Time.deltaTime, 1e-5f);
 
             if (cameraPivot != null)
             {
-                float moving = (cc.isGrounded && mv.sqrMagnitude > 0.01f) ? 1f : 0f;
+                float moving = (Grounded && mv.sqrMagnitude > 0.01f) ? 1f : 0f;
                 bobT += Time.deltaTime * speed * 2.2f * moving;
                 float bob = Mathf.Sin(bobT) * headBob * moving;
                 cameraPivot.localPosition = new Vector3(0, cc.height - eyeOffset + bob, 0);
                 cameraPivot.localRotation = Quaternion.Euler(pitch, 0, 0);
             }
 
-            if (active && FeriInput.Flashlight() && flashlight != null) flashlight.Toggle();
+            if (active && flashlightKey && FeriInput.Flashlight() && flashlight != null) flashlight.Toggle();
 
             hover = null;
             if (cameraPivot != null)
@@ -128,6 +156,31 @@ namespace FeriMap
                     hover = hit.collider.GetComponentInParent<FeriInteractable>();
             }
             if (active && lookEnabled && hover != null && FeriInput.Interact()) hover.Interact(this);
+        }
+
+        // Noclip: the controller is off, so walls and props don't block; a short ray keeps the feet on the floor.
+        void NoclipMove(Vector3 wish)
+        {
+            float dt = Time.deltaTime;
+            cc.enabled = false;
+            Vector3 pos = transform.position + wish * dt;
+            float fall = Mathf.Max(0f, -vy * dt);
+            noclipGrounded = false;
+            if (vy <= 0f && Physics.Raycast(pos + Vector3.up * noclipStep, Vector3.down, out RaycastHit hit, noclipStep + fall + 0.02f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                pos.y = hit.point.y;
+                vy = 0f;
+                noclipGrounded = true;
+            }
+            else pos.y += vy * dt;
+            transform.position = pos;
+
+            // switched off while inside a wall: keep ghosting until the capsule is free again
+            if (!noclip)
+            {
+                Vector3 a = pos + Vector3.up * (cc.radius + 0.05f), b = pos + Vector3.up * Mathf.Max(cc.height - cc.radius, cc.radius + 0.06f);
+                if (!Physics.CheckCapsule(a, b, cc.radius * 0.95f, ~0, QueryTriggerInteraction.Ignore)) cc.enabled = true;
+            }
         }
 
         void OnGUI()

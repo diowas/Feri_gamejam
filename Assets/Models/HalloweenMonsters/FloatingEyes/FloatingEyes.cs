@@ -71,7 +71,7 @@ public class FloatingEyes : MonoBehaviour
     void Update()
     {
         if (!playerCamera || vanishing) return;
-        float dt = Time.deltaTime;
+        float dt = FeriMap.FeriSlow.DeltaTime;
         Transform cam = playerCamera.transform;
 
         // ---- only on the hunt floors: elsewhere they hang still; on another floor than you they blink over to yours
@@ -97,17 +97,17 @@ public class FloatingEyes : MonoBehaviour
             dir = Quaternion.Euler(0, 25f * sideBias, 0) * dir;
             desired = cam.position + dir * preferredDistance;
         }
-        desired.y = HoverHeight(desired) + Mathf.Sin((Time.time + bobPhase) * bobSpeed) * bobAmount;
+        desired.y = HoverHeight(desired) + Mathf.Sin((FeriMap.FeriSlow.Time + bobPhase) * bobSpeed) * bobAmount;
         float speed = dist < minDistance ? retreatSpeed : (inView ? 0f : driftSpeed);
         Vector3 next = Vector3.SmoothDamp(transform.position, desired, ref velocity, 0.8f, speed);
         if (inView && dist >= minDistance) next.y = desired.y;                                   // frozen, but still bobbing
         transform.position = next;
 
         // ---- every eye looks at you
-        if (Time.time > nextSaccade)
+        if (FeriMap.FeriSlow.Time > nextSaccade)
         {
             for (int i = 0; i < saccades.Count; i++) saccades[i] = Random.insideUnitSphere * Mathf.Tan(saccadeDegrees * Mathf.Deg2Rad);
-            nextSaccade = Time.time + Random.Range(0.4f, 1.8f);
+            nextSaccade = FeriMap.FeriSlow.Time + Random.Range(0.4f, 1.8f);
         }
         for (int i = 0; i < eyes.Count; i++)
         {
@@ -125,7 +125,7 @@ public class FloatingEyes : MonoBehaviour
 
         // ---- eyeshine: bright in peripheral vision, dim when looked at directly
         float target = inView ? Mathf.Lerp(peripheralGlow, directGlow, Mathf.InverseLerp(0.9f, 0.99f, facing)) : peripheralGlow;
-        target *= 0.85f + 0.15f * Mathf.PerlinNoise(Time.time * 2.5f, bobPhase);
+        target *= 0.85f + 0.15f * Mathf.PerlinNoise(FeriMap.FeriSlow.Time * 2.5f, bobPhase);
         glow = Mathf.Lerp(glow, target, 1f - Mathf.Exp(-5f * dt));
         SetGlow(glow);
     }
@@ -151,7 +151,7 @@ public class FloatingEyes : MonoBehaviour
     {
         vanishing = true; stareTimer = 0;
         // squash shut like a blink, glitch-fast
-        for (float t = 0; t < 0.08f; t += Time.deltaTime)
+        for (float t = 0; t < 0.08f; t += FeriMap.FeriSlow.DeltaTime)
         {
             transform.localScale = new Vector3(baseScale.x, baseScale.y * (1 - t / 0.08f), baseScale.z);
             yield return null;
@@ -172,7 +172,7 @@ public class FloatingEyes : MonoBehaviour
             p.y = HoverHeight(p);
         }
         transform.position = p; velocity = Vector3.zero;
-        for (float t = 0; t < 0.5f; t += Time.deltaTime)
+        for (float t = 0; t < 0.5f; t += FeriMap.FeriSlow.DeltaTime)
         {
             transform.localScale = baseScale * Mathf.SmoothStep(0, 1, t / 0.5f);
             yield return null;

@@ -61,7 +61,7 @@ public class CeilingWatcher : MonoBehaviour
                 pivot = pivot,
                 speed = Random.value < laggardChance ? turnSpeed * Random.Range(0.12f, 0.3f) : turnSpeed * Random.Range(0.8f, 1.3f),
                 current = Quaternion.identity,
-                nextSaccade = Time.time + Random.Range(0f, saccadeInterval)
+                nextSaccade = FeriMap.FeriSlow.Time + Random.Range(0f, saccadeInterval)
             });
             eyeRenderers.Add(r);
         }
@@ -71,15 +71,15 @@ public class CeilingWatcher : MonoBehaviour
     {
         if (!playerCamera) return;
         Vector3 target = playerCamera.transform.position;
-        float dt = Time.deltaTime;
-        bool spotted = Time.time < spottedUntil;
+        float dt = FeriMap.FeriSlow.DeltaTime;
+        bool spotted = FeriMap.FeriSlow.Time < spottedUntil;
 
         foreach (var e in eyes)
         {
-            if (Time.time >= e.nextSaccade)
+            if (FeriMap.FeriSlow.Time >= e.nextSaccade)
             {
                 e.saccade = Random.insideUnitSphere * Mathf.Tan(saccadeDegrees * Mathf.Deg2Rad);
-                e.nextSaccade = Time.time + saccadeInterval * Random.Range(0.4f, 1.6f);
+                e.nextSaccade = FeriMap.FeriSlow.Time + saccadeInterval * Random.Range(0.4f, 1.6f);
             }
             Vector3 dir = (target - e.pivot.position).normalized + (spotted ? Vector3.zero : e.saccade);
             Vector3 local = transform.InverseTransformDirection(dir.normalized);
@@ -97,13 +97,13 @@ public class CeilingWatcher : MonoBehaviour
         Vector3 flat = target - transform.position; flat.y = 0;
         bool under = flat.magnitude < spotRadius && HasLineOfSight(target);
         underTimer = under ? underTimer + dt : Mathf.Max(0, underTimer - dt * 2f);
-        if (underTimer > spotDelay && Time.time > cooldownUntil) Spot();
+        if (underTimer > spotDelay && FeriMap.FeriSlow.Time > cooldownUntil) Spot();
 
         // ---- glow: fades when stared at directly, flares when it spots you
         Vector3 toMe = (transform.position - target).normalized;
         float stare = Mathf.InverseLerp(0.92f, 0.99f, Vector3.Dot(playerCamera.transform.forward, toMe));
-        float targetGlow = Time.time < spottedUntil ? spottedGlow : Mathf.Lerp(peripheralGlow, directGlow, stare);
-        targetGlow *= 0.85f + 0.15f * Mathf.PerlinNoise(Time.time * 3f, 0f);
+        float targetGlow = FeriMap.FeriSlow.Time < spottedUntil ? spottedGlow : Mathf.Lerp(peripheralGlow, directGlow, stare);
+        targetGlow *= 0.85f + 0.15f * Mathf.PerlinNoise(FeriMap.FeriSlow.Time * 3f, 0f);
         glow = Mathf.Lerp(glow, targetGlow, 1f - Mathf.Exp(-6f * dt));
         foreach (var r in eyeRenderers)
         {
@@ -124,8 +124,8 @@ public class CeilingWatcher : MonoBehaviour
     void Spot()
     {
         underTimer = 0;
-        cooldownUntil = Time.time + spotCooldown;
-        spottedUntil = Time.time + 2.5f;
+        cooldownUntil = FeriMap.FeriSlow.Time + spotCooldown;
+        spottedUntil = FeriMap.FeriSlow.Time + 2.5f;
         if (spotSound) spotSound.Play();
         if (hunter) hunter.SendMessage("TeleportBehindPlayer", SendMessageOptions.DontRequireReceiver);
         onPlayerSpotted?.Invoke();

@@ -171,13 +171,13 @@ public class TrickOrTreater : MonoBehaviour
     // ================================================================ AI
     void Update()
     {
-        float dt = Time.deltaTime;
+        float dt = FeriMap.FeriSlow.DeltaTime;
         if (!playerCamera || killing || !agent.isOnNavMesh) { Animate(dt); return; }
         Vector3 p = playerCamera.transform.position;
         playerVelocity = Vector3.Lerp(playerVelocity, (p - lastPlayerPos) / Mathf.Max(dt, 1e-4f), 10f * dt);
         lastPlayerPos = p;
         bool sees = CanSee(p, out float dist);
-        if (sees) { lastKnown = p; lastSeenTime = Time.time; }
+        if (sees) { lastKnown = p; lastSeenTime = FeriMap.FeriSlow.Time; }
         stateTimer += dt;
 
         switch (state)
@@ -199,11 +199,11 @@ public class TrickOrTreater : MonoBehaviour
 
             case State.Chase:
                 agent.isStopped = false; agent.speed = chaseSpeed;
-                if (!sees && Time.time - lastSeenTime < 1.5f && OnMyFloor(p)) lastKnown = p;     // it 'knows' for a moment around corners
+                if (!sees && FeriMap.FeriSlow.Time - lastSeenTime < 1.5f && OnMyFloor(p)) lastKnown = p;     // it 'knows' for a moment around corners
                 repathTimer -= dt;
                 if (repathTimer <= 0f) { agent.SetDestination(Ground(lastKnown)); repathTimer = 0.2f; }
                 if (sees && FlatDistance(p) < killDistance) { StartCoroutine(KillRoutine()); break; }
-                if (Time.time - lastSeenTime > loseSightTime)
+                if (FeriMap.FeriSlow.Time - lastSeenTime > loseSightTime)
                 {
                     SetState(State.Search); onLostPlayer?.Invoke();
                     agent.SetDestination(Ground(lastKnown));
@@ -363,10 +363,10 @@ public class TrickOrTreater : MonoBehaviour
         if (Mathf.Sign(s) != Mathf.Sign(lastSin) && gait > 0.3f) Footstep();
         lastSin = s;
 
-        if (Time.time > nextTwitch && state != State.Spotting && !killing)
+        if (FeriMap.FeriSlow.Time > nextTwitch && state != State.Spotting && !killing)
         {
             headRoll += Random.Range(-35f, 35f);                             // the neck twitches
-            nextTwitch = Time.time + Random.Range(1.5f, 5f);
+            nextTwitch = FeriMap.FeriSlow.Time + Random.Range(1.5f, 5f);
         }
         headRoll = Mathf.Lerp(headRoll, headRollTarget, 1f - Mathf.Exp(-(state == State.Spotting ? 30f : 3f) * dt));
 
@@ -378,7 +378,7 @@ public class TrickOrTreater : MonoBehaviour
     {
         float ph = phase, s = Mathf.Sin(ph), c = Mathf.Cos(ph), g = gait;
         float hipA = (chasing ? 42f : 26f) * g, kneeA = (chasing ? 70f : 42f) * g, armA = (chasing ? 30f : 16f) * g;
-        float breathe = Mathf.Sin(Time.time * 1.3f);
+        float breathe = Mathf.Sin(FeriMap.FeriSlow.Time * 1.3f);
         for (int side = 0; side < 2; side++)
         {
             float sg = side == 0 ? 1f : -1f, sp = s * sg, cp = c * sg;
@@ -392,7 +392,7 @@ public class TrickOrTreater : MonoBehaviour
         }
         if (chasing && !killing)
         {
-            float k = Mathf.Repeat(Time.time * 1.1f, 1f);                      // huge knife arm: slow raise, fast low sweep
+            float k = Mathf.Repeat(FeriMap.FeriSlow.Time * 1.1f, 1f);                      // huge knife arm: slow raise, fast low sweep
             float sweep = k < 0.75f ? Mathf.Lerp(-10f, -85f, k / 0.75f) : Mathf.Lerp(-85f, 20f, (k - 0.75f) / 0.25f);
             Rot(AUR, sweep, 0f, -12f); Rot(ALR, -20f); Rot(HR, -15f);
             Rot(AUL, -72f + 10f * s, 0f, 10f); Rot(ALL, -12f);              // the sack hand reaches for you
@@ -408,7 +408,7 @@ public class TrickOrTreater : MonoBehaviour
         // head: wrong angle, scans while searching, locks onto you while hunting
         Quaternion look = Quaternion.identity;
         if (state == State.Chase || state == State.Spotting || killing) look = LookAtPlayer();
-        else if (state == State.Search || state == State.Investigate) look = Quaternion.Euler(0f, Mathf.Sin(Time.time * 0.9f) * 65f, 0f);
+        else if (state == State.Search || state == State.Investigate) look = Quaternion.Euler(0f, Mathf.Sin(FeriMap.FeriSlow.Time * 0.9f) * 65f, 0f);
         headLook = Quaternion.Slerp(headLook, look, 0.5f);
         joints[HEAD].localRotation = headLook * Quaternion.Euler(6f, 0f, headRoll * mirror);
 
@@ -440,7 +440,7 @@ public class TrickOrTreater : MonoBehaviour
 
     void LateUpdate()
     {
-        float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+        float dt = Mathf.Max(FeriMap.FeriSlow.DeltaTime, 1e-4f);
         // the pillowcase swings like a pendulum from its hand
         var sack = joints[SACK];
         Vector3 v = (sack.position - sackLastPos) / dt; sackLastPos = sack.position;
@@ -459,7 +459,7 @@ public class TrickOrTreater : MonoBehaviour
 
         // pinprick eyes: dim while calm, burning while it hunts you, strobing during the kill
         bool hunting = state == State.Chase || state == State.Spotting || killing;
-        glow = Mathf.Lerp(glow, (hunting ? huntingEyeGlow : calmEyeGlow) * (0.85f + 0.15f * Mathf.PerlinNoise(Time.time * 4f, 0.5f)), 1f - Mathf.Exp(-5f * dt));
+        glow = Mathf.Lerp(glow, (hunting ? huntingEyeGlow : calmEyeGlow) * (0.85f + 0.15f * Mathf.PerlinNoise(FeriMap.FeriSlow.Time * 4f, 0.5f)), 1f - Mathf.Exp(-5f * dt));
         float shown = killing && Random.value < 0.25f ? (Random.value < 0.5f ? 0f : glow * 2f) : glow;
         if (headRenderer)
         {
