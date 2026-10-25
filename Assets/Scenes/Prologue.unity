@@ -6307,28 +6307,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f54e86224529ac46abd4651e9904e3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Prologue.PrologueBed
-  sleepPrompt: '[E] Sleep'
-  notTiredPrompt: I'm not tired yet...
-  canSleep: 1
-  sleepPoint: {fileID: 422030435}
-  moveCamera: 1
+  prompt: '[E] Go to sleep'
+  nextScene: FERI_Map
   lieDownTime: 1.6
-  fadeOutTime: 1.5
-  blackHoldTime: 1.5
-  fadeInTime: 2
-  animator: {fileID: 0}
-  sleepTrigger: Sleep
-  wakeTrigger: WakeUp
-  nextScene: 
-  onLieDown:
-    m_PersistentCalls:
-      m_Calls: []
-  onAsleep:
-    m_PersistentCalls:
-      m_Calls: []
-  onWakeUp:
-    m_PersistentCalls:
-      m_Calls: []
+  eyesClosedTime: 1.2
+  fallTime: 4
+  fallGravity: 12
+  spin: 25
+  sleepPoint: {fileID: 422030435}
 --- !u!1 &1600379018
 GameObject:
   m_ObjectHideFlags: 0
