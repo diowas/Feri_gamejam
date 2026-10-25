@@ -26790,6 +26790,10 @@ PrefabInstance:
       value: 2.2
       objectReference: {fileID: 0}
     - target: {fileID: 7204267963752194424, guid: eda44d51d0d4c6d40829860abb7c3ee4, type: 3}
+      propertyPath: killScream
+      value: 
+      objectReference: {fileID: 8300000, guid: c8fa1669f4bf9f548b4c9fb237e660f1, type: 3}
+    - target: {fileID: 7204267963752194424, guid: eda44d51d0d4c6d40829860abb7c3ee4, type: 3}
       propertyPath: patrolSpeed
       value: 0.8
       objectReference: {fileID: 0}
@@ -26802,9 +26806,17 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7204267963752194424, guid: eda44d51d0d4c6d40829860abb7c3ee4, type: 3}
+      propertyPath: footstepClips.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7204267963752194424, guid: eda44d51d0d4c6d40829860abb7c3ee4, type: 3}
       propertyPath: 'disableOnKill.Array.data[0]'
       value: 
       objectReference: {fileID: 1097795933}
+    - target: {fileID: 7204267963752194424, guid: eda44d51d0d4c6d40829860abb7c3ee4, type: 3}
+      propertyPath: 'footstepClips.Array.data[0]'
+      value: 
+      objectReference: {fileID: 8300000, guid: f418092ecdf99bb4e9c5480aabbdaaac, type: 3}
     - target: {fileID: 7423549356570691491, guid: eda44d51d0d4c6d40829860abb7c3ee4, type: 3}
       propertyPath: m_Name
       value: TrickOrTreater
@@ -30376,6 +30388,14 @@ PrefabInstance:
       value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
+      propertyPath: catchScream
+      value: 
+      objectReference: {fileID: 8300000, guid: dfd576c899dca5c4d8e7e6ba208abf3d, type: 3}
+    - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
+      propertyPath: playerCamera
+      value: 
+      objectReference: {fileID: 1868211917}
+    - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
       propertyPath: glowIntensity
       value: 1000
       objectReference: {fileID: 0}
@@ -31048,6 +31068,7 @@ MonoBehaviour:
   startFloor: 3
   audioSource: {fileID: 1207736794}
   state: 0
+  powered: 1
   currentFloor: 3
   targetFloor: -1
 --- !u!1 &1222985378
@@ -33682,6 +33703,14 @@ PrefabInstance:
       propertyPath: slideSpeed
       value: 6
       objectReference: {fileID: 0}
+    - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
+      propertyPath: catchScream
+      value: 
+      objectReference: {fileID: 8300000, guid: dfd576c899dca5c4d8e7e6ba208abf3d, type: 3}
+    - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
+      propertyPath: playerCamera
+      value: 
+      objectReference: {fileID: 1868211917}
     - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
       propertyPath: glowIntensity
       value: 1000
@@ -37807,6 +37836,14 @@ PrefabInstance:
       propertyPath: slideSpeed
       value: 6
       objectReference: {fileID: 0}
+    - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
+      propertyPath: catchScream
+      value: 
+      objectReference: {fileID: 8300000, guid: dfd576c899dca5c4d8e7e6ba208abf3d, type: 3}
+    - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
+      propertyPath: playerCamera
+      value: 
+      objectReference: {fileID: 1868211917}
     - target: {fileID: 7555838019077629199, guid: 79ccd5f31c3bba4449d086a579c7203e, type: 3}
       propertyPath: glowIntensity
       value: 1000
