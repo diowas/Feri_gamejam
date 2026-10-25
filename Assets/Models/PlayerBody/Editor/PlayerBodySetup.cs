@@ -46,6 +46,8 @@ public static class PlayerBodySetup
     const float HandGap = 0.614f;     // hand.L <-> hand.R in the "relax" pose, metres (from arms_rig.glb)
     const float HandsBelow = 41.7f;   // in "relax" the wrists sit this many degrees below the rig camera's line of sight
     const float BodyHeight = 1.82f;   // the base character, top of head
+    const int BuildVersion = 2;       // bump to make every machine rebuild the prefabs once
+    const string BuildKey = "PlayerBody.BuildVersion";
 
     [MenuItem("Tools/Player Body/Build Prefabs")]
     public static void BuildMenu()
@@ -57,11 +59,18 @@ public static class PlayerBodySetup
     [InitializeOnLoadMethod]
     static void AutoBuild()
     {
+        // also after leaving Play mode: scripts often recompile while the game is running, when building is skipped
+        EditorApplication.playModeStateChanged += s => { if (s == PlayModeStateChange.EnteredEditMode) TryAutoBuild(); };
+        EditorApplication.delayCall += TryAutoBuild;
+    }
+
+    static void TryAutoBuild()
+    {
         EditorApplication.delayCall += () =>
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             string root = FindRoot();
-            if (root != null && (!File.Exists(root + "/Resources/PlayerArms.prefab") || !File.Exists(root + "/Resources/AbilityFlashlight.prefab"))) Build();
+            if (root != null && (!File.Exists(root + "/Resources/PlayerArms.prefab") || EditorPrefs.GetInt(BuildKey, 0) < BuildVersion)) Build();
         };
     }
 
@@ -88,6 +97,7 @@ public static class PlayerBodySetup
             BuildFlashlight(root, flashFbx, MakeMat(root + "/Materials/Flashlight_PS1.mat", ps1, flashTex), MakeMat(root + "/Materials/Flashlight_Lit.mat", lit, flashTex));
         else Debug.LogWarning("Player Body: Assets/Models/flashlight.fbx not found, the FLASH ability has no flashlight to spawn.");
         AssetDatabase.SaveAssets();
+        EditorPrefs.SetInt(BuildKey, BuildVersion);
         Debug.Log("Player Body: built PlayerArms + PlayerLegs in " + root + "/Resources");
         return true;
     }
@@ -182,9 +192,26 @@ public static class PlayerBodySetup
         model.transform.SetParent(go.transform, false);
         Transform t = model.transform;
 
+        // vertices via MeshData: works even when the model isn't imported Read/Write
         var pts = new System.Collections.Generic.List<Vector3>();
         foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
-            if (mf.sharedMesh != null) foreach (var v in mf.sharedMesh.vertices) pts.Add(mf.transform.TransformPoint(v));
+        {
+            if (mf.sharedMesh == null) continue;
+            using (var data = Mesh.AcquireReadOnlyMeshData(mf.sharedMesh))
+            {
+                var verts = new Unity.Collections.NativeArray<Vector3>(data[0].vertexCount, Unity.Collections.Allocator.Temp);
+                data[0].GetVertices(verts);
+                foreach (var v in verts) pts.Add(mf.transform.TransformPoint(v));
+                verts.Dispose();
+            }
+        }
+        if (pts.Count == 0)   // fall back to the renderer bounds' corners
+            foreach (var r in model.GetComponentsInChildren<Renderer>())
+            {
+                Bounds rb = r.bounds;
+                for (int i = 0; i < 8; i++)
+                    pts.Add(rb.center + Vector3.Scale(rb.extents, new Vector3((i & 1) * 2 - 1, (i & 2) - 1, (i & 4) / 2 - 1)));
+            }
         if (pts.Count > 0)
         {
             var b = new Bounds(pts[0], Vector3.zero);

@@ -223,12 +223,47 @@ namespace FeriMap
 
         FeriAbilities abilities;
 
-        string Label(int i)
+        string Seconds(int i)
         {
-            string t = (switchNames != null && i < switchNames.Length ? switchNames[i] + "  " : "") + "[" + (i + 1) + "]";
             if (abilities == null) abilities = GetComponent<FeriAbilities>();
             float left = abilities != null ? abilities.Remaining(i) : 0f;
-            return left > 0f ? t + "\n" + Mathf.CeilToInt(left) + "s" : t;
+            return left > 0f ? Mathf.CeilToInt(left) + "s" : null;
+        }
+
+        // 12x12 pixel icons for the switches: FLASH, XRAY, NOCLIP, SLOW, BHOP ('#' = lit)
+        static readonly string[][] IconArt =
+        {
+            new[] { "............", "..........#.", "........##..", ".......#...#", "######.##.#.", "#######.#...",
+                    "#######.#.##", "######.##...", ".......#..#.", "........##..", "..........#.", "............" },   // flashlight
+            new[] { "............", "............", "....####....", "..##....##..", ".#...##...#.", "#...####...#",
+                    "#...####...#", ".#...##...#.", "..##....##..", "....####....", "............", "............" },   // eye
+            new[] { "....####....", "..########..", ".##########.", ".##..##..##.", ".##..##..##.", ".##########.",
+                    ".##########.", ".##########.", ".##########.", ".##########.", ".#.##..##.#.", "............" },   // ghost
+            new[] { "############", ".##########.", "..########..", "...######...", "....####....", ".....##.....",
+                    ".....##.....", "....#..#....", "...#....#...", "..#..##..#..", ".#.######.#.", "############" },   // hourglass
+            new[] { ".....##.....", "....####....", "...######...", "..########..", ".....##.....", ".....##.....",
+                    ".....##.....", "............", "#..........#", ".##......##.", "...######...", "............" },   // bounce
+        };
+        static Texture2D[] icons;
+
+        /// <summary>The 12x12 pixel icon of switch i (also used by the FeriAbilities HUD).</summary>
+        public static Texture2D Icon(int i)
+        {
+            if (icons == null || icons[0] == null)
+            {
+                icons = new Texture2D[IconArt.Length];
+                for (int k = 0; k < IconArt.Length; k++)
+                {
+                    var art = IconArt[k];
+                    var t = new Texture2D(12, 12, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+                    for (int y = 0; y < 12; y++)
+                        for (int x = 0; x < 12; x++)
+                            t.SetPixel(x, 11 - y, art[y][x] == '#' ? Color.white : Color.clear);
+                    t.Apply();
+                    icons[k] = t;
+                }
+            }
+            return i >= 0 && i < icons.Length ? icons[i] : null;
         }
 
         static void Box(Rect r, Color c)
@@ -275,7 +310,25 @@ namespace FeriMap
                 float ky = Mathf.Lerp(r.yMax - kh, r.y, knobT[i]);   // knob slides up when on
                 Box(new Rect(r.x - r.width * 0.12f, ky, r.width * 1.24f, kh), new Color(0.85f, 0.85f, 0.8f));
                 GUI.color = new Color(0.65f, 1f, 0.7f, 0.8f);
-                GUI.Label(new Rect(r.center.x - r.width * 2.2f, r.yMax + b, r.width * 4.4f, panel.height * 0.1f), Label(i), labelStyle);
+                // pixel icon under the switch, seconds left under that while it's running
+                float isz = Mathf.Min(r.width * 1.6f, panel.height * 0.11f);
+                var icon = Icon(i);
+                if (icon != null)
+                {
+                    GUI.color = switches[i] ? new Color(0.65f, 1f, 0.7f) : new Color(0.55f, 0.5f, 0.48f);
+                    GUI.DrawTexture(new Rect(r.center.x - isz * 0.5f, r.yMax + b, isz, isz), icon);
+                }
+                else
+                {
+                    GUI.color = new Color(0.65f, 1f, 0.7f, 0.8f);
+                    GUI.Label(new Rect(r.center.x - r.width * 2.2f, r.yMax + b, r.width * 4.4f, isz), switchNames != null && i < switchNames.Length ? switchNames[i] : (i + 1).ToString(), labelStyle);
+                }
+                string secs = Seconds(i);
+                if (secs != null)
+                {
+                    GUI.color = new Color(0.65f, 1f, 0.7f, 0.9f);
+                    GUI.Label(new Rect(r.center.x - r.width * 2.2f, r.yMax + b + isz, r.width * 4.4f, panel.height * 0.07f), secs, labelStyle);
+                }
             }
 
             // cursor
