@@ -22,6 +22,8 @@ namespace Prologue
         [Tooltip("Slow spin while falling, degrees per second.")]
         public float spin = 25f;
 
+        public AudioSource glitchEffect;
+
         [Tooltip("Camera pose when lying in bed. Created automatically on the pillow if empty.")]
         public Transform sleepPoint;
 
@@ -57,6 +59,8 @@ namespace Prologue
 
             // eyes open: falling through the bed, the floor, the ground...
             cam.SetParent(null, true);
+            glitchEffect.Play();
+            if (PrologueMusic.Instance) PrologueMusic.Instance.FadeOut(fallTime);
             float speed = 0f;
             for (float t = 0; t < fallTime; t += Time.deltaTime)
             {

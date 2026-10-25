@@ -59,6 +59,53 @@ namespace Prologue.EditorTools
             Debug.Log("Prologue: '" + bed.name + "' is now interactable. Save the scene (Ctrl+S).", bed);
         }
 
+        const string VeilPath = "Assets/Soundtracks/Veil.wav";
+
+        [MenuItem("Tools/Prologue/Add Veil Soundtrack")]
+        public static void AddVeil()
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(VeilPath);
+            if (clip == null)
+            {
+                EditorUtility.DisplayDialog("Prologue", "Couldn't find " + VeilPath + ".", "OK");
+                return;
+            }
+
+            // 9-minute track: stream it from disk instead of decompressing it all into memory, 2D
+            var imp = AssetImporter.GetAtPath(VeilPath) as AudioImporter;
+            if (imp != null)
+            {
+                var s = imp.defaultSampleSettings;
+                if (s.loadType != AudioClipLoadType.Streaming || s.compressionFormat != AudioCompressionFormat.Vorbis)
+                {
+                    s.loadType = AudioClipLoadType.Streaming;
+                    s.compressionFormat = AudioCompressionFormat.Vorbis;
+                    s.quality = 0.7f;
+                    imp.defaultSampleSettings = s;
+                    imp.SaveAndReimport();
+                    clip = AssetDatabase.LoadAssetAtPath<AudioClip>(VeilPath);
+                }
+            }
+
+            var music = FindInScene("Music");
+            if (music == null)
+            {
+                music = new GameObject("Music");
+                Undo.RegisterCreatedObjectUndo(music, "Add Veil Soundtrack");
+            }
+            var src = music.GetComponent<AudioSource>();
+            if (src == null) src = Undo.AddComponent<AudioSource>(music);
+            src.clip = clip;
+            src.loop = true;
+            src.playOnAwake = false;
+            src.spatialBlend = 0f;
+            if (music.GetComponent<PrologueMusic>() == null) Undo.AddComponent<PrologueMusic>(music);
+
+            EditorSceneManager.MarkSceneDirty(music.scene);
+            Selection.activeGameObject = music;
+            Debug.Log("Prologue: Veil soundtrack added. Save the scene (Ctrl+S).", music);
+        }
+
         static GameObject FindInScene(string name)
         {
             var scene = EditorSceneManager.GetActiveScene();
