@@ -170,6 +170,7 @@ namespace FeriMap
             FeriEscape.ResetForNewGame();
             FeriBlackout.ResetState();
             JumpscareDirector.ResetDarkness();
+            FeriMainMenu.AfterEnding = true;   // back to the menu, as "Play again"
             if (!string.IsNullOrEmpty(nextScene)) SceneManager.LoadScene(nextScene);
             else SceneManager.LoadScene(0);
         }

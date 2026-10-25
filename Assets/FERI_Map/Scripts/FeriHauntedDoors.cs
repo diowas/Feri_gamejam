@@ -226,6 +226,8 @@ namespace FeriMap
             if (r == null || r.sharedMaterial == null) return null;
             var m = new Material(r.sharedMaterial) { name = name + " leaf (runtime)" };
             if (m.HasProperty("_UseVertexColor")) m.SetFloat("_UseVertexColor", 0f);
+            // the PS1 affine texture warp smears a big two-triangle leaf as it swings: keep the texture straight
+            if (m.HasProperty("_Affine")) m.SetFloat("_Affine", 0f);
             return m;
         }
 
