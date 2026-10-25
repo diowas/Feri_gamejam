@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
 using TMPro;
-using Unity.AppUI.UI;
+using Unity.AppUI;
 using UnityEngine;
 
 public class text : MonoBehaviour
@@ -10,6 +10,8 @@ public class text : MonoBehaviour
     [SerializeField] private TextMeshProUGUI txtSleep;
     [SerializeField] private GameObject introCanvas;
     [SerializeField] private TextMeshProUGUI txtIntro;
+    [SerializeField] private Animation introFadeAnimation;
+    [SerializeField] private Animation introFadeTextAnimation;
 
     string textSleep = "it's getting late... I should go to sleep.";
     string textIntro = "I found something in the old warehouse at work...\r\nIt looks like a device but... \r\nI don't know what it is for...\r\n                        \r\nI took it back home with me.";
@@ -29,7 +31,9 @@ public class text : MonoBehaviour
             yield return new WaitForSeconds(0.05f);
         }
 
-        yield return new WaitForSeconds(8);
+        introFadeAnimation.Play();
+        introFadeTextAnimation.Play();
+        yield return new WaitForSeconds(3);
         introCanvas.gameObject.SetActive(false);
 
         txtSleep.text = "";

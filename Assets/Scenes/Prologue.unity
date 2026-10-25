@@ -1835,6 +1835,8 @@ MonoBehaviour:
   txtSleep: {fileID: 1969858131}
   introCanvas: {fileID: 1880198247}
   txtIntro: {fileID: 1001036663}
+  introFadeAnimation: {fileID: 1880198251}
+  introFadeTextAnimation: {fileID: 1001036665}
 --- !u!1001 &305319632
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4909,6 +4911,7 @@ GameObject:
   - component: {fileID: 1001036662}
   - component: {fileID: 1001036664}
   - component: {fileID: 1001036663}
+  - component: {fileID: 1001036665}
   m_Layer: 5
   m_Name: Text (TMP)
   m_TagString: Untagged
@@ -5035,6 +5038,23 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1001036661}
   m_CullTransparentMesh: 1
+--- !u!111 &1001036665
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1001036661}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: 7400000, guid: a12a15b8dd4275b4eaebfb08373f9af0, type: 2}
+  m_Animations:
+  - {fileID: 7400000, guid: a12a15b8dd4275b4eaebfb08373f9af0, type: 2}
+  m_WrapMode: 0
+  m_PlayAutomatically: 0
+  m_AnimatePhysics: 0
+  m_UpdateMode: 0
+  m_CullingType: 0
 --- !u!1 &1011737801
 GameObject:
   m_ObjectHideFlags: 0
@@ -7678,6 +7698,7 @@ GameObject:
   - component: {fileID: 1880198248}
   - component: {fileID: 1880198250}
   - component: {fileID: 1880198249}
+  - component: {fileID: 1880198251}
   m_Layer: 5
   m_Name: Intro
   m_TagString: Untagged
@@ -7743,6 +7764,23 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1880198247}
   m_CullTransparentMesh: 1
+--- !u!111 &1880198251
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880198247}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: 7400000, guid: bb63f990bbb816a43be3df39dbcc8d5d, type: 2}
+  m_Animations:
+  - {fileID: 7400000, guid: bb63f990bbb816a43be3df39dbcc8d5d, type: 2}
+  m_WrapMode: 0
+  m_PlayAutomatically: 0
+  m_AnimatePhysics: 0
+  m_UpdateMode: 0
+  m_CullingType: 0
 --- !u!1001 &1883742428
 PrefabInstance:
   m_ObjectHideFlags: 0
